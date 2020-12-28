@@ -61,11 +61,18 @@ class Map:
         #    raise ValueError('not mp3 file')
 
         # load .osu map info
+        map_json = None
         try:
             map_json = load_map(osu_path,False)
         except:
             print("error loading .osu file: ", sys.exc_info()[0])
-
+            return None
+        
+        if map_json is None:
+            return None
+        # skip other game modes for now
+        if map_json['General']['Mode'] != 0:
+            return None
         # use basename of osu file as id for map
         name = ntpath.basename(osu_path)
 
