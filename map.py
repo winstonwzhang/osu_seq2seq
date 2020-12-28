@@ -4,11 +4,10 @@ import re
 import sys
 import pdb
 import ntpath
-import librosa
 import numpy as np
 import pandas as pd
 
-from map_io import load_map, load_template, save_map
+from map_io import load_map, load_template, save_map, save_words
 from word import *
 from utils import parseOsuMp3Filename
 
@@ -16,12 +15,11 @@ from utils import parseOsuMp3Filename
 class Map:
     '''map object class for reading, writing, and analyzing osu map info'''
 
-    def __init__(self, name, map_json, mp3_path, mp3_len=None):
+    def __init__(self, name, map_json, mp3_len=None):
         
         if mp3_len:
             self.mp3_len = mp3_len
         
-        self.mp3_path = mp3_path
         self.name = name
         
         # json style dicts
@@ -52,15 +50,15 @@ class Map:
     
 
     @classmethod
-    def fromPath(cls,osu_path,mp3_path):
-        '''create map using osu and mp3 files'''
+    def fromPath(cls,osu_path):
+        '''create map using osu file'''
         # error checking
-        if not os.path.isfile(mp3_path):
-            raise ValueError('mp3 file not found')
+        #if not os.path.isfile(mp3_path):
+        #    raise ValueError('mp3 file not found')
         if not os.path.isfile(osu_path):
             raise ValueError('osu file not found')
-        if os.path.splitext(mp3_path)[1] != '.mp3':
-            raise ValueError('not mp3 file')
+        #if os.path.splitext(mp3_path)[1] != '.mp3':
+        #    raise ValueError('not mp3 file')
 
         # load .osu map info
         try:
@@ -71,7 +69,7 @@ class Map:
         # use basename of osu file as id for map
         name = ntpath.basename(osu_path)
 
-        return cls(name,map_json,mp3_path)
+        return cls(name,map_json)
     
 
     @classmethod
@@ -86,16 +84,16 @@ class Map:
         '''
         # use basename of mp3 file as id for map
         name = ntpath.splitext(ntpath.basename(mp3_path))[0]
-        artist, song, diff = parseOsuMp3Filename(name)
+        artist, song, _ = parseOsuMp3Filename(name)
         # edit difficulty name to be "[diff name]"
         diff = 'AIs Easy'
         if '[' in name:
-            name = re.sub('\[.*\]','['+diff+']')
+            name = re.sub('\[.*\]','['+diff+']',name)
         else:
             name = name + ' [' + diff + ']'
         
         # get template map json
-        map_json = load_template(name, diff)
+        map_json = load_template(name, artist, song, diff)
         
         # populate timing dictionary
         for ui_info in time_bpm:
@@ -108,7 +106,7 @@ class Map:
                  }
             map_json['TimingPoints'].append(ui)
 
-        return cls(name,map_json,mp3_path,mp3_len)
+        return cls(name,map_json,mp3_len)
     
     
     def saveMap2Osu(self):
@@ -124,25 +122,36 @@ class Map:
                     'Colours': self.C,
                     'HitObjects': self.O}
         
-        save_map(self.name, self.mp3_path, map_json)
+        save_map(self.name, map_json)
     
     
-    def saveWords2CSV(self, csv_path):
-        '''Saves word list into csv file, with timing info in first lines'''
+    def saveWords2JSON(self, json_path):
+        '''Saves difficulty, timing info, and word list into json'''
         # get uninherited timing section data
         time_bpm = []
-        df = pd.Series(self.words)
-        with open(csv_path,'w') as file:
-            for ui in self.T_ui:
-                begin_time = ui["time"]
-                bpm = ui["bpm"]
-                mspb = ui["beatLength"]
-                mspti = mspb / ui['meter']
-                meter = ui['meter']
-                file.write('{:f},{:f},{:f},{:f},{:n}\r\n'.format(
-                    begin_time,bpm,mspb,mspti,meter))
-            file.write(df.to_csv(index=False,header=False))
-        print(csv_path + ' written successfully')
+        for ui in self.T_ui:
+            begin_time = ui["time"]
+            end_time = ui['endTime']
+            bpm = ui["bpm"]
+            mspb = ui["beatLength"]
+            mspti = mspb / ui['meter']
+            meter = ui['meter']
+            time_bpm.append({'time': begin_time,
+                             'end_time': end_time,
+                             'bpm': bpm,
+                             'mspb': mspb,
+                             'mspti': mspti,
+                             'meter': meter
+                             })
+        out = {}
+        out['difficulty'] = {'HP': self.c_HP,
+                             'CS': self.c_CS,
+                             'OD': self.c_OD,
+                             'AR': self.c_AR
+                             }
+        out['time_bpm'] = time_bpm
+        out['words'] = self.words
+        save_words(json_path,out)
     
     
     def getTick(self, timeidx):
@@ -269,28 +278,33 @@ class Map:
 if __name__ == "__main__":
     
     # for testing only
-    filename = "Our Stolen Theory - United (L.A.O.S Remix) (Asphyxia) [Infinity]"
+    #filename = "Our Stolen Theory - United (L.A.O.S Remix) (Asphyxia) [Infinity]"
     #filename = "Will Stetson - Despacito ft. R3 Music Box (Sotarks) [Monstrata's Slow Expert]"
-    #filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
+    filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
     #filename = "Caravan Palace - Miracle (Mulciber) [Extra]"
+    #filename = "xi - FREEDOM DiVE (Pikastar) [Universe]"
     
     osu_file = "songs/osu_mp3/" + filename + ".osu"
     mp3_file = "songs/osu_mp3/" + filename + ".mp3"
     
     # [Time(ms), bpm, meter(beats per measure)]
     # assume timing is found beforehand
-    time_bpm = [[15688, 175, 4]]
+    #time_bpm = [[15688, 175, 4]]
     #time_bpm = [[540,91,4],[2245,89,4]]
-    #time_bpm = [[1342,180,4]]
+    time_bpm = [[1342,180,4]]
     #time_bpm = [[-30,200,4]]
+    #time_bpm = [[2133,222.22,4]]
     
+    import librosa
     sec_len = librosa.get_duration(filename=mp3_file)
     mp3_len = sec_len * 1000
     m_empty = Map.fromTiming(time_bpm,mp3_file,mp3_len=mp3_len)
     
     # read actual .osu map
-    m = Map.fromPath(osu_file,mp3_file)
+    m = Map.fromPath(osu_file)
     # encode then decode the hitobjects and try out the map
     obj_words = m.encodeTicks()
+    m.saveWords2JSON("songs/test.json")
+    pdb.set_trace()
     m_empty.decodeWords(obj_words)
     m_empty.saveMap2Osu()

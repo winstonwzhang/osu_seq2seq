@@ -251,7 +251,7 @@ def load_map(file,save_f):
     return out
 
 
-def save_map(basename, mp3_path, map_json):
+def save_map(basename, map_json):
     savepath = 'songs/'
     osu_path = savepath + basename + '.osu'
     
@@ -337,6 +337,13 @@ def save_map(basename, mp3_path, map_json):
     
     print(osu_path + ' written successfully')
 
+
+def save_words(json_path,out_dict):
+    '''Save word and timing lists to json'''
+    output = json.dumps(out_dict, indent=4)
+    with open(json_path,'w') as file:
+        file.write(output)
+    print(json_path + ' written successfully')
 
 
 if __name__ == "__main__":

@@ -41,17 +41,45 @@ class Word:
     - 2nd subword [E, NE, N, NW, W, SW, S, SE]
         direction of tick vector (with previous tick direction being N)
     - 3rd subword [c, s, m, f]
-        magnitude of tick vector / # ticks of time passed since previous obj
-        crawl, slow, med, fast: magnitude of movement needed
+        distance between prev obj and current obj divided by # ticks passed since previous obj
+        crawl, slow, med, fast: magnitude of distance per tick needed
         >= 0, >= 50, >= 150, >= 300 osu!pixels per tick
     
     Examples:
     "h_N_c"    - tick is a hit circle, direction did not change from before, very slow
                  speed needed to hit (either stacked on previous, or empty time in between)
-    "slc_NE_s" - tick is in middle of slider, direction changed to NE, slow slider speed
-    "sp"       - tick is during a spinner
+    "slb_S_f"  - tick is at start of slider, direction reversed from previous direction. There
+                 is a significant jump or distance between previous hit object and this slider.
+    "slc_NE_c" - tick is in middle of slider, direction changed to NE. 3rd subword is ignored
+                 since slider speed is constant (decoding uses 3rd subword of slider end [sle])
+    "spin"       - tick is during a spinner
     
-    Total corpus size: 5 [h,hd,slb,slm,sle] x 8 x 4 = 160 + 3 [spin,b,e] = 163 unique words
+    # # # # # # # # # # # # # # # # # # # # # # # #
+    Example encoding of 237768 Our Stolen Theory - United (LAOS Remix) (Asphyxia) [Infinity]
+    Link to beatmap: https://osu.ppy.sh/beatmapsets/237768
+    Excerpt from 3 min 07 sec 288 ms to 3 min 08 sec 745 ms
+    
+    tick 0-5: 'slb_N_c', 'slc_N_c', 'slc_N_c', 'slc_N_c', 'sle_N_s', 'e'
+    tick 6-11: 'slb_NW_c', 'slc_NW_c', 'sle_N_c', 'e', 'slb_SE_s', 'slc_SW_c'
+    tick 12-17: 'sle_N_c', 'e', 'h_SW_s', 'spin', 'spin', 'spin'
+    
+    Ticks 0 to 4: Slider start is close to previous hitobject and moving in same direction as before.
+                  Slider is a straight line (constant 'N' along slider ticks). Slider end tells us
+                  the slider speed is between 30 and 60 osu!pixels per tick ('s').
+    Tick 5: 'e' tells us there is no hitobject at this specific tick.
+    Ticks 6 to 8: Slider start has shifted ~45 degrees counterclockwise from previous slider end ('NW').
+                  Middle of slider also curves ~45 degrees 'NW' from slider start. Slider only lasts
+                  for 3 ticks in time. Slider speed is between 0 and 30 osu!pixels per tick ('c').
+    Tick 14: hit circle is 'SW' of previous slider end. Hit circle is placed 140-300 osu!pixels away from
+             previous slider end (distance/2 is between 70 and 150 since subword 3 is 's').
+    Ticks 15 to 17: A spinner is happening at these ticks.
+    # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    Total corpus size from combinations of subwords:
+    4 [h,hd,slb,sle] x 8 [E,NE,N,NW,W,SW,S,SE] x 4 [c,s,m,f] = 128
+    1 [slc] x 8 [E,NE,N,NW,W,SW,S,SE] x 1 [c]                = 8
+    3 [spin,b,e]                                             = 3
+    128 + 8 + 3 = 139 unique words
     '''
     # object subwords
     HITCIRCLE = 'h'
@@ -274,9 +302,7 @@ def encodeJSON2Words(M):
         if obj_class == 0:
             # check for half-tick hitcircle
             if titimediff > tilen*0.4:
-                pdb.set_trace()
                 sw1 = Word.HITCIRCLE_DOUBLE
-                continue  # skip for now
             else:
                 sw1 = Word.HITCIRCLE
             M.words[ti] = sw1+'_'+sw2+'_'+sw3
@@ -361,7 +387,7 @@ def decodePos(prev_xy, prev_dir, tidiff, sw_dir, sw_vel, pix_ti=None):
     # add randomness to direction generation
     if tidiff > 1:
         x,y = new_dir
-        randrad = random.uniform(-np.pi/4,np.pi/4)
+        randrad = random.uniform(0,np.pi/4)
         cn,sn = np.cos(randrad), np.sin(randrad)
         new_dir[0] = x * cn - y * sn
         new_dir[1] = x * sn + y * cn
