@@ -14,7 +14,7 @@ Training a machine learning model for automatic beatmap generation
 can be seen as learning a function for going from the audio
 (music waveform) domain to the beatmap domain, where the
 beatmap domain could be viewed as similar to music midi notes.
-Thus this problem is could be compared to the automatic music
+Thus this problem could be compared to the automatic music
 transcription problem in literature.
 
 However, besides the goal of classifying note class and note
