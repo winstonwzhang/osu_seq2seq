@@ -47,8 +47,8 @@ if __name__=='__main__':
     sys.path.insert(0,parentdir)
     
     import yaml
-    from utils import AttrDict
-    from utils.mylogger import init_logger
+    from util import AttrDict
+    from util.mylogger import init_logger
     
     # suppress tf warnings
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
