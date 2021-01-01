@@ -5,10 +5,11 @@ import numpy as np
 from transformer import Transformer
 from layers import Prenet
 from input_mask import create_masks
+from word_embed import get_vocab
 
 
 class Osu_transformer(tf.keras.Model):
-    def __init__(self,config,logger=None):
+    def __init__(self,config,logger=None,vocab_embed=None):
         super(Osu_transformer, self).__init__()
         
         if config is not None:
@@ -27,13 +28,13 @@ class Osu_transformer(tf.keras.Model):
             self.prenet = Prenet()
             print('default prenet n=32,k=3,d=512')
         
-        self.transformer = Transformer(config=config,logger=logger)
+        self.transformer = Transformer(config=config,logger=logger,vocab_embed=vocab_embed)
 
     def call(self,inputs,targets,training,enc_padding_mask,look_ahead_mask,dec_padding_mask):
 
         out = self.prenet(inputs,training)
-        final_out,attention_weights = self.transformer((out,targets) ,training, enc_padding_mask,
-             look_ahead_mask, dec_padding_mask)
+        final_out,attention_weights = self.transformer((out,targets),training,
+            enc_padding_mask,look_ahead_mask, dec_padding_mask)
 
         return final_out,attention_weights
 
@@ -65,7 +66,10 @@ if __name__=='__main__':
     # and word inputs will not have padding either
     comb_mask = create_masks(inputs, targets)
     
-    OT = Osu_transformer(config,logger)
+    # get vocab embedding using unique word list and d_model
+    vocab_embed = get_vocab(config.model.d_model)
+    
+    OT = Osu_transformer(config,logger,vocab_embed)
     final_out, attention_weights = OT(inputs,targets,True,None,comb_mask,None)
 
     print('final_out.shape:',final_out.shape)

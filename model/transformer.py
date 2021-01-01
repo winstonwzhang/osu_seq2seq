@@ -7,7 +7,7 @@ from decoder import Decoder
 
 class Transformer(tf.keras.Model):
     def __init__(self, num_layers=2, d_model=256, num_heads=8, dff=1024, pe_max_len=8000,
-                 target_vocab_size=140, rate=0.1,config=None,logger=None):
+                 vocab_size=140, rate=0.1,config=None,logger=None,vocab_embed=None):
         super(Transformer, self).__init__()
 
         if config is not None:
@@ -17,7 +17,7 @@ class Transformer(tf.keras.Model):
             num_heads = config.model.n_heads
             dff = config.model.d_ff
             pe_max_len = config.model.pe_max_len
-            target_vocab_size = config.model.vocab_size
+            vocab_size = config.model.vocab_size
             rate = config.model.dropout
             
             if logger is not None:
@@ -27,7 +27,7 @@ class Transformer(tf.keras.Model):
                 logger.info('config.model.n_heads:   '+str(num_heads))
                 logger.info('config.model.d_ff:      '+str(dff))
                 logger.info('config.model.pe_max_len:'+str(pe_max_len))
-                logger.info('config.model.vocab_size:'+str(target_vocab_size))
+                logger.info('config.model.vocab_size:'+str(vocab_size))
                 logger.info('config.model.dropout:   '+str(rate))
         else:
             print('use default params')
@@ -37,10 +37,11 @@ class Transformer(tf.keras.Model):
         self.encoder = Encoder(num_enc_layers, d_model, num_heads, dff,
                                    pe_max_len,'encoder', rate)
 
+        # decoder requires word embed matrix to initialize embedding layer
         self.decoder = Decoder(num_dec_layers, d_model, num_heads, dff,
-                               target_vocab_size, 'decoder',pe_max_len,rate)
+                               vocab_size, 'decoder',vocab_embed,pe_max_len,rate)
 
-    def call(self, inputs , training, enc_padding_mask,
+    def call(self, inputs, training, enc_padding_mask,
              look_ahead_mask, dec_padding_mask):
 
         inp = tf.cast(inputs[0],tf.float32)

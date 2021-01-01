@@ -35,7 +35,7 @@ class Word:
     Also encodes ticks with no events (no objects) and breaks
     
     Vocab:
-    - 1st subword [h,hd,slb,slc,sle,spin,b,e]
+    - 1st subword [h,slb,slc,sle,spin,b,e]
         hitcircle, hitcircle double, slider begin, slider center,
         slider end, spinner, break, empty
     - 2nd subword [E, NE, N, NW, W, SW, S, SE]
@@ -76,10 +76,10 @@ class Word:
     # # # # # # # # # # # # # # # # # # # # # # # #
     
     Total corpus size from combinations of subwords:
-    4 [h,hd,slb,sle] x 8 [E,NE,N,NW,W,SW,S,SE] x 4 [c,s,m,f] = 128
+    3 [h,slb,sle] x 8 [E,NE,N,NW,W,SW,S,SE] x 4 [c,s,m,f] = 96
     1 [slc] x 8 [E,NE,N,NW,W,SW,S,SE] x 1 [c]                = 8
     3 [spin,b,e]                                             = 3
-    128 + 8 + 3 = 139 unique words
+    96 + 8 + 3 = 107 unique words
     '''
     # object subwords
     HITCIRCLE = 'h'
@@ -303,6 +303,8 @@ def encodeJSON2Words(M):
             # check for half-tick hitcircle
             if titimediff > tilen*0.4:
                 sw1 = Word.HITCIRCLE_DOUBLE
+                # skip, only deal with objects on ticks
+                continue
             else:
                 sw1 = Word.HITCIRCLE
             M.words[ti] = sw1+'_'+sw2+'_'+sw3

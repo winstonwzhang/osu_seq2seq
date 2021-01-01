@@ -282,9 +282,7 @@ class Map:
         self.words = words
 
 
-
-if __name__ == "__main__":
-    
+def profile_map():
     # for testing only
     #filename = "Our Stolen Theory - United (L.A.O.S Remix) (Asphyxia) [Infinity]"
     #filename = "Will Stetson - Despacito ft. R3 Music Box (Sotarks) [Monstrata's Slow Expert]"
@@ -313,6 +311,11 @@ if __name__ == "__main__":
     # encode then decode the hitobjects and try out the map
     obj_words = m.encodeTicks()
     m.saveWords2JSON("songs/test.json")
-    pdb.set_trace()
-    m_empty.decodeWords(obj_words)
-    m_empty.saveMap2Osu()
+    
+    #m_empty.decodeWords(obj_words)
+    #m_empty.saveMap2Osu()
+
+
+if __name__ == "__main__":
+    
+    profile_map()

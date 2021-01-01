@@ -7,14 +7,19 @@ from encoder import Encoder
 
 class Decoder(tf.keras.Model):
     def __init__(self, num_layers, d_model, num_heads, dff, target_vocab_size,name,
-                 pe_max_len=8000,rate=0.1):
+                 vocab_embed, pe_max_len=8000,rate=0.1):
         super(Decoder, self).__init__()
 
         self.d_model = d_model
         self.num_layers = num_layers
         print('self.num_layers(decoder): ', self.num_layers)
 
-        self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model,name='de_emb',embeddings_initializer='normal')
+        # embedding initializer should be matrix with size (tgt_vocab_size, d_model)
+        if vocab_embed is None:
+            vocab_embed = 'normal'
+        
+        self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model,
+            name='de_emb',embeddings_initializer=vocab_embed)
         self.pos_encoding = positional_encoding(pe_max_len, self.d_model)
 
         self.dec_layers = [DecoderLayer(d_model, num_heads, dff, 'DE'+str(_),rate)
