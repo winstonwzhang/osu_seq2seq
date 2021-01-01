@@ -29,7 +29,7 @@ def parseOsuMp3Filename(name):
     song = match.group(2)
     if '[' in name:
         # get diff name from enclosed [] brackets, choose closest to end
-        diff = re.findall('\[([^\[]]*)\]',name)
+        diff = re.findall('\[([^\[]*)\]',name)
         if diff:
             diff = diff[-1]
     else:

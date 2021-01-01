@@ -1,0 +1,94 @@
+model design summary
+
+Input data:
+1. Pre-timed music .wav file downsampled to a constant mono channel 44100 Hz sampling rate
+2. Word data containing osu hit object type, direction, and velocity information
+
+Preprocessing:
+Each song file is pre-timed, meaning that each word is matched with a specific tick index in the song.
+A "tick" is calculated from beat length divided by meter.
+Beat length is calculated from (60*1000) / song BPM.
+Meter is usually 4 ticks per beat (4/4 time in music theory).
+Osu songs will range from 120 BPM to a high end of 400 BPM,
+which corresponds to tick lengths in the range of 125 ms to 37.5 ms.
+
+Since audio ticks and words are paired, we want to use a sequence of audio ticks as input to the encoder,
+and a sequence of words matching each tick as the decoder input. Using the features extracted from the 
+sequence of audio ticks, the encoder will generate attention matrices that help the decoder to predict the 
+correct sequence of words.
+
+To generate features from audio data, we want to capture information about the song at and around each tick.
+Hopefully, the features will contain information about song intensity, drum beats, and other musical cues that
+will help the decoder know which ticks to predict a hit circle on and which ticks to predict nothing on.
+
+In speech recognition and music classification literature, spectrograms have shown to be able to capture similar 
+information by transforming audio data into frequency and time information.
+CNNs also serve as excellent feature extractors on spectrograms. We can use a CNN network to summarize the 
+information contained in a spectrogram that is generated from the music samples around each tick.
+
+One problem, however, is that ticks have different lengths in different songs, while we need constant sized input 
+to our CNN feature extracting network (to generate embeddings for each audio tick). 
+We can solve this by extracting features in a fixed window centered on each tick. The fixed window should be 
+large enough to cover the range of BPMs found in songs, so we will use 128 ms of audio data around each tick 
+to convert to spectrograms and as input to our CNN. If a song has a higher BPM and thus lower tick length, the 
+fixed window will contain some overlap with adjacent tick samples (a lot of overlap in the case of 400 BPM/37.6 ms!)
+but overlap generally is fine and can even help with performance.
+
+The final inputs to our model will be:
+Encoder - sequence of tick audio features, using CQT spectrograms calculated from 128 ms around each tick
+Decoder - sequence of words, with one word per tick
+
+Constant Q Transform parameters:
+- window size of 2^8 = 256 samples = 5.805 ms at 44.1 kHZ sampling rate
+- minimum freq of 27.5 (note A0 in octave subcontra, the lowest note on a standard piano)
+- highest freq of 6644.875 (8 octaves above note A0)
+- 12 bins per octave (8 octaves * 12 bins = 96 CQT frequency bins)
+- apply CQT on the entirety of each song for speed
+- since CQT time windows are 5.805 ms each, we take 128/5.805 ~ 22 CQT time windows around each tick
+- dimension of one tick sample is [96 frequency bins x 22 time windows]
+- if we want to use 30 ticks as the length of both input audio and output word sequences, then our final 
+  dimension would be a 3D matrix of [30 ticks x 96 freq bins x 22 time windows]
+
+Transformers generally are much faster to train and use less memory for lower sized sequences.
+However, we also don't want to use super short tick sequences, as word prediction will depend on 
+the surrounding audio ticks as well as the surrounding hit objects.
+
+
+Pre-net:
+CNN feature extractor similar to the one in [1].
+Input to network will be CQT (constant Q transform) spectrogram features computed from window of
+128 ms around each tick. The dimensions of the CNN input layer will be 
+[Batch size x Ticks x Freq bins x Time windows]. The pre-net will apply 2D convolutional kernel filters to learn what 
+features of each tick spectrogram (Freq x Time) are important. However, these 2D kernels will be somewhat 
+different from usual CNN - we don't want to mix up the spectrograms along the tick axis, while in typical 
+image convolution the channel dimension will be summed up by each filter. Here we will use a depth-wise 
+convolution, meaning that each 2D kernel (say 3x3) will act on each input tick spectrogram separately.
+
+- conv2D 3x3 with stride 2x2 and same padding, 32 channels
+- conv2D 3x3 with stride 2x2 and same padding, 32 channels
+- batchnorm
+- relu activation
+- maxpool 2x2 with stride of 1
+- flatten
+- dense layer with 1024 units
+ 
+ Final output is [Batch x Ticks x 1024], which will be input to the encoder. The 1024 length vector for each tick
+ will summarize the information in the 128 ms of spectrogram surrounding that tick.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+References:
+[1] Karen Ullrich, Eelco van der Wel (2017) Music Transcription With Convolutional Sequence-to-Sequence Models
+
+[2] Yongqiang Wang, et. al (2020) Transformer-Based Acoustic Modeling For Hybrid Speech Recognition

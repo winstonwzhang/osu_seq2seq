@@ -1,0 +1,63 @@
+units_type: tick
+feature_source: librosa
+feature_type: CQT
+data_name: osuMaps
+feat_path: osumap/data/wavs
+word_path: osumap/data/word_maps
+
+feature:
+    num_oct: 8
+    bin_per_oct: 12
+    fmin: 27.5   # note A0 (lowest piano note)
+    feat_path: osumap/data/wavs
+    word_path: osumap/data/word_maps
+    shuffle: True
+    max_tick_length: 32 # max ticks to use for both audio and words
+
+model:
+    name: Osu_Transformer
+    prenet_filters: 32
+    prenet_kernel: 3
+    prenet_dense: 512
+    vocab_size: 139 # 139 unique words
+    pe_max_len: 1000 # position encoding length (must be greater than max_tick_length)
+    dropout: 0.1
+    d_model: 256 # d_k = d_v = d_q = d_model/n_heads = 128
+    n_heads: 4
+    # fine-tune hyper params
+    encoder_layers: 2
+    decoder_layers: 2
+    d_ff: 1024
+
+train:
+    seed: 2020
+    batch_size: 16
+    batch_frames: 20000
+    use_gpu: True
+    num_gpu: 1
+    gpu_ids: 0
+    max_steps: 100000 # need to be modified
+    epoches: 30 # need to be specified
+    label_smoothing_epsilon: 0.1
+    neighborhood_smoothing: True
+    visualization: True
+    show_interval: 10
+    save_model: log/saved_models/
+    dev_on_training: False
+
+test:
+    batch_size: 4
+
+optimizer:
+    warmup_n: 25000
+    k: 10  # note: decreased k to 1 when the model converged
+    beta1: 0.9
+    beta2: 0.98
+    epsilon: 1.0e-9
+
+decode:
+    beam_size: 10
+    length_penalty: 1.0
+
+debug:
+    batch_size: 4

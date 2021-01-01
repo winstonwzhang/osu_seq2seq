@@ -118,9 +118,9 @@ class Word:
     
     # velocity: osu!pixel per tick thresholds (non-slider)
     t_CRAWL = 0
-    t_SLOW = 70
-    t_MED = 150
-    t_FAST = 250
+    t_SLOW = 40
+    t_MED = 90
+    t_FAST = 180
     # velocity: osu!pixel per tick thresholds (slider speed)
     t_sCRAWL = 0  # sliderMultiplier 0.0 hecto-osupix assuming meter of 4
     t_sSLOW = 30  # sliderMultiplier 1.2 hecto-osupix assuming meter of 4
