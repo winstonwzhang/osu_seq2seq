@@ -10,7 +10,7 @@ Weighted cross-entropy loss using similarity scores between classes as weights
 https://www.aclweb.org/anthology/D18-1525.pdf
 """
 from keras import backend as K
-def weighted_categorical_crossentropy(weights):
+def weighted_categorical_crossentropy(weights, from_logits=True):
     """
     A weighted version of keras.objectives.categorical_crossentropy
     
@@ -26,12 +26,14 @@ def weighted_categorical_crossentropy(weights):
     weights = K.variable(weights)
         
     def loss(y_true, y_pred):
+        if from_logits:
+            y_pred = K.softmax(y_pred,axis=-1)
         # scale predictions so that the class probas of each sample sum to 1
-        y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
+        #y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
         # clip to prevent NaN's and Inf's
         y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
         # calc
-        loss = y_true * K.log(y_pred) * weights
+        loss = sim(y_true,y_pred) * K.log(y_pred)
         loss = -K.sum(loss, -1)
         return loss
     
@@ -76,14 +78,13 @@ def LableSmoothingLoss(real,pred,vocab_size,epsilon):
     # print(real)
     real_smoothed = label_smoothing(tf.one_hot(real,depth=vocab_size),epsilon)
     # print(real_smoothed)
-    # mask = tf.math.logical_not(tf.math.equal(real, 0))
     loss_ = LableSmoothing_loss_object(real_smoothed, pred)
 
     #mask = tf.math.logical_not(tf.math.equal(real, 0))
-    mask = tf.cast(mask, dtype=loss_.dtype)# 转换为与loss相同的类型
+    #mask = tf.cast(mask, dtype=loss_.dtype)# 转换为与loss相同的类型
 
     # Since the target sequences are padded, it is important to apply a padding mask when calculating the loss.
-    loss_ *= mask
+    #loss_ *= mask
 
     return tf.reduce_mean(loss_)
 
