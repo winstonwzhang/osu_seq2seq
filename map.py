@@ -157,7 +157,7 @@ class Map:
                              'AR': self.c_AR
                              }
         out['time_bpm'] = time_bpm
-        out['ticks'] = self.ticks
+        out['ticks'] = list(self.ticks)
         out['words'] = self.words
         save_words(json_path,out)
     
