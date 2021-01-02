@@ -14,6 +14,7 @@ from model.model import Osu_transformer
 from model.word_embed import get_vocab
 from data_loader import get_dataloaders, DataLoader
 from util.mylogger import init_logger
+from util import AttrDict
 
 # reproducibility
 # Set the seed for hash based operations in python
@@ -21,7 +22,7 @@ os.environ['PYTHONHASHSEED'] = '0'
 random.seed(2020)
 
 # Set the random seed in tensorflow at graph level
-tf.random.set_seed(42)
+tf.compat.v1.set_random_seed(42)
 
 
 
@@ -41,7 +42,9 @@ def main():
     
     logger = init_logger()
     log_name = opt.model_name or config.model.name
-    log_folder = os.path.join(os.getcwd(),'log/logging',log_name)
+    log_folder = os.path.join(os.getcwd(),'log',log_name)
+    if not os.path.isdir(log_folder):
+        os.mkdir(log_folder)
     logger = init_logger(log_folder+'/'+opt.log)
     
     pdb.set_trace()
