@@ -20,7 +20,7 @@ def sim_w_catcrossentropy_loss(real,pred,vocab_size,sim_matrix):
     #real_onehot = tf.one_hot(real,depth=vocab_size)
     #orig_loss = cat_loss_obj(real_onehot,pred)
     
-    real_sim = tf.convert_to_tensor(sim_matrix[real,:], tf.float32)
+    real_sim = tf.Variable(sim_matrix[real,:], trainable=False, dtype=tf.float32)
     loss_ = cat_loss_obj(real_sim, pred)
     
     return tf.reduce_mean(loss_)
