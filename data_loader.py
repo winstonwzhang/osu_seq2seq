@@ -124,6 +124,9 @@ class DataLoader():
         batch_size = self.batch_size
         # total batch size will be around sample_size x batch_size
         seq_len = self.seq_len
+        ms2win = self.ms2win
+        extract_l = self.extract_l
+        extract_r = self.extract_r
 
         result = []
         while 1:
@@ -171,7 +174,11 @@ class DataLoader():
                     # choose [sample_size] random [seq_len] long tick sections
                     # might choose overlapping sections if [seq_len] is long
                     # if section overlaps more than 50% with empty sections, choose another
-                    seqs = []
+                    # for seqs chosen, extract spectrogram and word data
+                    # spec data in form of [sample_size x seq_len x freq x time]
+                    seqs_data = []
+                    in_data = []
+                    out_data = []
                     ct = 0
                     while len(seqs) < sample_size or ct > 30:
                         # get random tick from range [10, word_len-seq_len-10]
@@ -182,24 +189,25 @@ class DataLoader():
                         if np.sum(empty_mask & mask) > seq_len/2:
                             ct += 1
                             continue
-                        seqs.append(np.where(mask)[0])
-                    
-                    # for seqs chosen, extract spectrogram and word data
-                    # spec data in form of [sample_size x seq_len x freq x time]
-                    seqs_data = []
-                    in_data = []
-                    out_data = []
-                    for seq in seqs:
-                        ti_specs = []
-                        for ti in seq:
-                            win_idx = self.ms2win(ticks[ti])
-                            ti_specs.append(spec[:,win_idx-self.extract_l:win_idx+self.extract_r])
-                        ti_specs = np.stack(ti_specs,axis=0)
-                        seqs_data.append(ti_specs)
-                        
-                        # no BOS token, instead shift tick range to left by 1
-                        in_data.append(tokens[seq-1])
-                        out_data.append(tokens[seq])
+                        seq = np.where(mask)[0]
+                        bad_seq = False
+                        if len(seq) == seq_len:
+                            ti_specs = []
+                            for ti in seq:
+                                win_idx = ms2win(ticks[ti])
+                                ti_spec = spec[:,win_idx-extract_l:win_idx+extract_r]
+                                # empty spectrogram (out of bounds tick index)
+                                if ti_spec.shape[1] != extract_l + extract_r:
+                                    bad_seq = True
+                                ti_specs.append(ti_spec)
+                            if bad_seq:
+                                ct += 1
+                                continue
+                            ti_specs = np.stack(ti_specs,axis=0)
+                            seqs_data.append(ti_specs)
+                            # no BOS token, instead shift tick range to left by 1
+                            in_data.append(tokens[seq-1])
+                            out_data.append(tokens[seq])
                     
                     spec_data.extend(seqs_data)
                     in_tokens.extend(in_data)
