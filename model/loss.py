@@ -4,7 +4,7 @@ from tensorflow.keras import backend as K
 import numpy as np
 
 #loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-#LableSmoothing_loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+LableSmoothing_loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
 
 cat_loss_obj = tf.keras.losses.CategoricalCrossentropy(from_logits=True,
     reduction=tf.losses.Reduction.NONE)
@@ -55,7 +55,7 @@ def label_smoothing(inputs, epsilon=0.1):
     Kin = inputs.get_shape().as_list()[-1]  # number of channels
     return ((1 - epsilon) * inputs) + (epsilon / Kin)
 
-def LableSmoothingLoss(real,pred,vocab_size,epsilon):
+def LabelSmoothingLoss(real,pred,vocab_size,epsilon):
     """
     pred (FloatTensor): batch_size x vocab_size
     real (LongTensor): batch_size
@@ -64,11 +64,11 @@ def LableSmoothingLoss(real,pred,vocab_size,epsilon):
     real_smoothed = label_smoothing(tf.one_hot(real,depth=vocab_size),epsilon)
     loss_ = LableSmoothing_loss_object(real_smoothed, pred)
 
-    mask = tf.math.logical_not(tf.math.equal(real, 0))
-    mask = tf.cast(mask, dtype=loss_.dtype)
+    #mask = tf.math.logical_not(tf.math.equal(real, 0))
+    #mask = tf.cast(mask, dtype=loss_.dtype)
 
     # Since the target sequences are padded, it is important to apply a padding mask when calculating the loss.
-    loss_ *= mask
+    #loss_ *= mask
 
     return tf.reduce_mean(loss_)
 
