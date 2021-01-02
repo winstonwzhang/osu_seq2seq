@@ -16,7 +16,7 @@ def sim_w_catcrossentropy_loss(real,pred,vocab_size,sim_matrix):
     real (LongTensor): batch_size
     sim_matrix (numpy matrix): vocab_size x vocab size
     """
-    real = tf.cast(real,tf.int32)
+    #real = tf.cast(real,tf.int32)
     #real_onehot = tf.one_hot(real,depth=vocab_size)
     #orig_loss = cat_loss_obj(real_onehot,pred)
     

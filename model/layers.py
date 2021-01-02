@@ -127,7 +127,7 @@ class Prenet(tf.keras.layers.Layer):
         self.relu1 = tf.keras.layers.ReLU()
         
         self.maxpl1 = tf.keras.layers.MaxPool2D(
-            pool_size=(2,2), strides=(2,1), padding='same',
+            pool_size=(2,2), strides=(1,1), padding='same',
             data_format='channels_first')
         
         self.flatten = tf.keras.layers.Flatten(data_format='channels_first')
