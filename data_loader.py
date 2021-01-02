@@ -180,7 +180,7 @@ class DataLoader():
                     in_data = []
                     out_data = []
                     ct = 0
-                    while len(seqs) < sample_size or ct > 30:
+                    while len(seqs_data) < sample_size or ct > 30:
                         # get random tick from range [10, word_len-seq_len-10]
                         # prevents out of bounds sequences
                         si = random.randint(10,len(words)-(seq_len+10))
