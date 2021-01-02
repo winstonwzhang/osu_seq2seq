@@ -31,7 +31,7 @@ def get_dataloaders(config, word2idx):
             dirpath = config.word_path + os.sep + diff_d
             json_files = os.listdir(dirpath)
             for feat_f in feat_files:
-                feat_fpath = feat_path + os.sep + feat_f
+                feat_fpath = config.feat_path + os.sep + feat_f
                 feat_basef = os.path.splitext(feat_f)[0]
                 fileset[feat_fpath] = [dirpath+os.sep+jf for jf in json_files if feat_basef in jf]
                 # delete feat file if it has no json
@@ -43,7 +43,7 @@ def get_dataloaders(config, word2idx):
     # divide into train, dev, test
     feat_files = list(fileset.keys())
     num_total = len(feat_files)
-    perm_files = random.shuffle(feat_files,k=num_total)
+    perm_files = random.sample(feat_files,k=num_total)
     
     train_prop = config.train.percent
     dev_prop = config.dev.percent
@@ -90,7 +90,7 @@ class DataLoader():
         self.seq_len = config.seq_length
         
         self.num_oct = config.feature.num_oct
-        self.sr = config.feature_sr
+        self.sr = config.feature.sr
         self.extract_ms = config.feature.extract_ms
         
         self.calculate_feat_stats()
