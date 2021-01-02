@@ -25,7 +25,7 @@ def construct_vocab():
     for sw2 in v2:
         combs.append('_'.join(['slc',sw2,'c']))
     
-    # dict mapping word to index (don't use index 0)
+    # dict mapping word to index
     word2idx = {k: i for i, k in enumerate(combs)}
     return combs, word2idx
 

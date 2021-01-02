@@ -127,7 +127,7 @@ class Prenet(tf.keras.layers.Layer):
         self.relu1 = tf.keras.layers.ReLU()
         
         self.maxpl1 = tf.keras.layers.MaxPool2D(
-            pool_size=(2,2), strides=(1,1), padding='same',
+            pool_size=(2,2), strides=(2,1), padding='same',
             data_format='channels_first')
         
         self.flatten = tf.keras.layers.Flatten(data_format='channels_first')
@@ -167,6 +167,9 @@ if __name__=='__main__':
     # prenet
     sample_prenet = Prenet()
     print(sample_prenet(tf.random.uniform((32,32,96,22)), False).shape)
+    prenet_w = sample_prenet.get_weights()
+    for lw in prenet_w:
+        print(lw.shape)
     
     # ffn
     sample_ffn = point_wise_feed_forward_network(512, 2048)

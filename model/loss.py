@@ -116,7 +116,6 @@ def soft_absdiff(real,pred,sim_matrix):
     mask = tf.cast(mask,dtype=tf.float32)
     tn_absdiff = absdiff * mask
     tn_absdiff = tf.math.reduce_sum(tn_absdiff) / tf.math.reduce_sum(mask)
-    pdb.set_trace()
     return tf.math.reduce_mean(absdiff), tp_absdiff, tn_absdiff
 
 

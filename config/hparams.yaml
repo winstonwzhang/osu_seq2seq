@@ -2,17 +2,19 @@ units_type: tick
 feature_source: librosa
 feature_type: CQT
 data_name: osuMaps
-feat_path: osumap/data/wavs
-word_path: osumap/data/word_maps
+feat_path: /content/gdrive/MyDrive/projects/osumap/data/cqt
+word_path: /content/gdrive/MyDrive/projects/osumap/data/word_maps
+wav_path: /content/gdrive/MyDrive/projects/osumap/data/wavs
+diffs: insane
+seq_length: 32 # tick sequence length to use for both audio and words
+
 
 feature:
     num_oct: 8
     bin_per_oct: 12
     fmin: 27.5   # note A0 (lowest piano note)
-    feat_path: osumap/data/wavs
-    word_path: osumap/data/word_maps
-    shuffle: True
-    seq_length: 32 # tick sequence length to use for both audio and words
+    sr: 44100
+    extract_ms: 128  # ms to take spectrogram around each tick
 
 model:
     name: Osu_Transformer
@@ -31,8 +33,10 @@ model:
     sim_thresh: 0.2 # cosine similarity threshold for decoder soft labels
 
 train:
-    seed: 2020
-    batch_size: 16
+    shuffle: True
+    sample_size: 4  # number of sequences to take from each song spectrogram
+    batch_size: 8  # number of unique song spectrograms in a batch
+    percent: 0.7  # percentage of all song spectrograms to use for training
     batch_frames: 20000
     use_gpu: True
     num_gpu: 1
@@ -43,11 +47,20 @@ train:
     neighborhood_smoothing: True
     visualization: True
     show_interval: 10
-    save_model: log/saved_models/
+    save_model: osu_seq2seq/log/saved_models/
     dev_on_training: False
 
+dev:
+    shuffle: True
+    sample_size: 4  # number of sequences to take from each song spectrogram
+    batch_size: 8  # number of unique song spectrograms in a batch
+    percent: 0.15
+
 test:
-    batch_size: 4
+    shuffle: False
+    sample_size: 4  # number of sequences to take from each song spectrogram
+    batch_size: 8  # number of unique song spectrograms in a batch
+    percent: 0.15
 
 optimizer:
     warmup_n: 25000

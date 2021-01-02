@@ -59,10 +59,6 @@ if __name__=='__main__':
     print(config.data_name)
     logger = init_logger()
     
-    # no need for encoding or decoding mask since spectrogram inputs will never be padded
-    # and word inputs will not have padding either
-    comb_mask = create_masks(inputs, targets)
-    
     # get vocab embedding with d_model vectors
     # vocab: list of unique words N
     # word2idx: dict mapping N words to single int index
@@ -74,8 +70,13 @@ if __name__=='__main__':
     inputs = np.random.randn(32,32,96,22)
     targets = np.random.randint(0,config.model.vocab_size-1,(32,32))
     
+    # no need for encoding or decoding mask since spectrogram inputs will never be padded
+    # and word inputs will not have padding either
+    comb_mask = create_masks(inputs, targets)
+    
     OT = Osu_transformer(config,logger,embed)
     final_out, attention_weights = OT(inputs,targets,True,None,comb_mask,None)
 
     print('final_out.shape:',final_out.shape)
     print('final_out:',final_out)
+    import pdb; pdb.set_trace()
