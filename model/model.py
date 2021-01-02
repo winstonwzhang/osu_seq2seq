@@ -59,17 +59,22 @@ if __name__=='__main__':
     print(config.data_name)
     logger = init_logger()
     
-    inputs = np.random.randn(32,32,96,22)
-    targets = np.random.randint(0,config.model.vocab_size-1,(32,32))
-    
     # no need for encoding or decoding mask since spectrogram inputs will never be padded
     # and word inputs will not have padding either
     comb_mask = create_masks(inputs, targets)
     
-    # get vocab embedding using unique word list and d_model
-    vocab_embed = get_vocab(config.model.d_model)
+    # get vocab embedding with d_model vectors
+    # vocab: list of unique words N
+    # word2idx: dict mapping N words to single int index
+    # embed: (N,d_model) matrix containing embedding vector for each word
+    # sim: (N,N) matrix containing cosine similarity for each word pair i,j
+    vocab,word2idx,embed,sim = get_vocab(config.model.d_model,sim_thresh=config.model.sim_thresh)
+    config.model.vocab_size = len(vocab)
     
-    OT = Osu_transformer(config,logger,vocab_embed)
+    inputs = np.random.randn(32,32,96,22)
+    targets = np.random.randint(0,config.model.vocab_size-1,(32,32))
+    
+    OT = Osu_transformer(config,logger,embed)
     final_out, attention_weights = OT(inputs,targets,True,None,comb_mask,None)
 
     print('final_out.shape:',final_out.shape)

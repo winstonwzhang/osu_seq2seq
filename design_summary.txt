@@ -84,7 +84,9 @@ convolution, meaning that each 2D kernel (say 3x3) will act on each input tick s
 
 
 
-
+Custom loss function:
+- The same song can have many different interpretations by different mappers, meaning that simple 
+cross entropy 
 
 
 

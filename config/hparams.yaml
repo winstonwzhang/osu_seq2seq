@@ -12,14 +12,14 @@ feature:
     feat_path: osumap/data/wavs
     word_path: osumap/data/word_maps
     shuffle: True
-    max_tick_length: 32 # max ticks to use for both audio and words
+    seq_length: 32 # tick sequence length to use for both audio and words
 
 model:
     name: Osu_Transformer
     prenet_filters: 32
     prenet_kernel: 3
     prenet_dense: 512
-    vocab_size: 139 # 139 unique words, fixed vocab size
+    vocab_size: 107 # fixed
     pe_max_len: 1000 # position encoding length (must be greater than max_tick_length)
     dropout: 0.1
     d_model: 128 # d_k = d_v = d_q = d_model/n_heads = 128
@@ -28,6 +28,7 @@ model:
     encoder_layers: 2
     decoder_layers: 2
     d_ff: 1024
+    sim_thresh: 0.2 # cosine similarity threshold for decoder soft labels
 
 train:
     seed: 2020

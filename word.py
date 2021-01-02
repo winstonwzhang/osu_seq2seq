@@ -77,8 +77,8 @@ class Word:
     
     Total corpus size from combinations of subwords:
     3 [h,slb,sle] x 8 [E,NE,N,NW,W,SW,S,SE] x 4 [c,s,m,f] = 96
-    1 [slc] x 8 [E,NE,N,NW,W,SW,S,SE] x 1 [c]                = 8
-    3 [spin,b,e]                                             = 3
+    1 [slc] x 8 [E,NE,N,NW,W,SW,S,SE] x 1 [c]             = 8
+    3 [spin,b,e]                                          = 3
     96 + 8 + 3 = 107 unique words
     '''
     # object subwords

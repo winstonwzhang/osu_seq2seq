@@ -17,19 +17,22 @@ class Decoder(tf.keras.Model):
         # embedding initializer should be matrix with size (tgt_vocab_size, d_model)
         if vocab_embed is None:
             vocab_embed = 'normal'
+            self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model,
+                name='de_emb',embedding_initializer=vocab_embed)
+        else:
+            # change trainable to False if word embeddings should be fixed
+            self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model,
+                name='de_emb',trainable=True)
+            self.embedding.build((None,))
+            self.embedding.set_weights([vocab_embed])
         
-        self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model,
-            name='de_emb',embeddings_initializer=vocab_embed)
         self.pos_encoding = positional_encoding(pe_max_len, self.d_model)
 
         self.dec_layers = [DecoderLayer(d_model, num_heads, dff, 'DE'+str(_),rate)
                            for _ in range(num_layers)]
         self.dropout = tf.keras.layers.Dropout(rate,name='de_emb_dp')
 
-        # FIXME: 是否需要Share the weight matrix between target word embedding & the final logit dense layer
-        # https://github.com/kaituoxu/Speech-Transformer/blob/master/src/transformer/decoder.py#L48
         self.final_layer = tf.keras.layers.Dense(target_vocab_size)
-        self.final_layer.set_weights(self.embedding.get_weights())
 
     def call(self, inputs, training):
         

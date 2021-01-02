@@ -63,9 +63,10 @@ if __name__=='__main__':
     
     # time spectrogram generation
     n_chunks = 1
-    chunk = round(np.floor(x.shape[0]/n_chunks))
+    chunk = int(round(np.floor(x.shape[0]/n_chunks)))
     st = time.time()
     for i in range(n_chunks):
+        pdb.set_trace()
         xtemp = x[i*chunk:(i+1)*chunk]
         spec = librosa.cqt(xtemp,sr=sr,fmin=fmin,bins_per_octave=bin_per_oct,n_bins=n_bins,hop_length=hop_len)
     
@@ -73,8 +74,8 @@ if __name__=='__main__':
     print("cqt took ", et, " sec with chunk size ", chunk/sr, " sec")
     
     # split spectrogram into strided windows around each tick
-    
     logSpec = librosa.amplitude_to_db(np.abs(spec))
+    pdb.set_trace()
     plt.figure(figsize=(15,5))
     librosa.display.specshow(logSpec, sr=sr, x_axis='time',y_axis='cqt_hz', hop_length=hop_len,fmin=fmin,bins_per_octave=bin_per_oct,cmap='coolwarm')
     plt.show()

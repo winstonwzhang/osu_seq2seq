@@ -1,43 +1,29 @@
 
 import tensorflow as tf
+from tensorflow.keras import backend as K
+import numpy as np
 
-loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-LableSmoothing_loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+#loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+#LableSmoothing_loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+
+cat_loss_obj = tf.keras.losses.CategoricalCrossentropy(from_logits=True,
+    reduction=tf.losses.Reduction.NONE)
 
 
-"""
-Weighted cross-entropy loss using similarity scores between classes as weights
-https://www.aclweb.org/anthology/D18-1525.pdf
-"""
-from keras import backend as K
-def weighted_categorical_crossentropy(weights, from_logits=True):
+def sim_w_catcrossentropy_loss(real,pred,vocab_size,sim_matrix):
     """
-    A weighted version of keras.objectives.categorical_crossentropy
-    
-    Variables:
-        weights: numpy array of shape (C,) where C is the number of classes
-    
-    Usage:
-        weights = np.array([0.5,2,10]) # Class one at 0.5, class 2 twice the normal weights, class 3 10x.
-        loss = weighted_categorical_crossentropy(weights)
-        model.compile(loss=loss,optimizer='adam')
+    pred (FloatTensor): batch_size x vocab_size
+    real (LongTensor): batch_size
+    sim_matrix (numpy matrix): vocab_size x vocab size
     """
+    real = tf.cast(real,tf.int32)
+    #real_onehot = tf.one_hot(real,depth=vocab_size)
+    #orig_loss = cat_loss_obj(real_onehot,pred)
     
-    weights = K.variable(weights)
-        
-    def loss(y_true, y_pred):
-        if from_logits:
-            y_pred = K.softmax(y_pred,axis=-1)
-        # scale predictions so that the class probas of each sample sum to 1
-        #y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
-        # clip to prevent NaN's and Inf's
-        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-        # calc
-        loss = sim(y_true,y_pred) * K.log(y_pred)
-        loss = -K.sum(loss, -1)
-        return loss
+    real_sim = tf.convert_to_tensor(sim_matrix[real,:], tf.float32)
+    loss_ = cat_loss_obj(real_sim, pred)
     
-    return loss
+    return tf.reduce_mean(loss_)
 
 
 def label_smoothing(inputs, epsilon=0.1):
@@ -66,8 +52,8 @@ def label_smoothing(inputs, epsilon=0.1):
         [ 0.03333334,  0.93333334,  0.03333334]]], dtype=float32)]
     ```
     '''
-    K = inputs.get_shape().as_list()[-1]  # number of channels
-    return ((1 - epsilon) * inputs) + (epsilon / K)
+    Kin = inputs.get_shape().as_list()[-1]  # number of channels
+    return ((1 - epsilon) * inputs) + (epsilon / Kin)
 
 def LableSmoothingLoss(real,pred,vocab_size,epsilon):
     """
@@ -75,18 +61,17 @@ def LableSmoothingLoss(real,pred,vocab_size,epsilon):
     real (LongTensor): batch_size
     """
     real = tf.cast(real,tf.int32)
-    # print(real)
     real_smoothed = label_smoothing(tf.one_hot(real,depth=vocab_size),epsilon)
-    # print(real_smoothed)
     loss_ = LableSmoothing_loss_object(real_smoothed, pred)
 
-    #mask = tf.math.logical_not(tf.math.equal(real, 0))
-    #mask = tf.cast(mask, dtype=loss_.dtype)# 转换为与loss相同的类型
+    mask = tf.math.logical_not(tf.math.equal(real, 0))
+    mask = tf.cast(mask, dtype=loss_.dtype)
 
     # Since the target sequences are padded, it is important to apply a padding mask when calculating the loss.
-    #loss_ *= mask
+    loss_ *= mask
 
     return tf.reduce_mean(loss_)
+
 
 def Loss(real,pred):
     mask = tf.math.logical_not(tf.math.equal(real, 0))
@@ -95,20 +80,61 @@ def Loss(real,pred):
     loss_ *= mask
     return tf.reduce_mean(loss_)
 
-def accuracy_function(real, pred):
-    accuracies = tf.equal(real, tf.argmax(pred, axis=2))
 
-    mask = tf.math.logical_not(tf.math.equal(real, 0))
-    accuracies = tf.math.logical_and(mask, accuracies)
+def accuracy_function(real, pred):
+    accuracies = tf.equal(real, tf.argmax(pred, axis=-1, output_type=tf.int32))
+
+    #mask = tf.math.logical_not(tf.math.equal(real, 0))
+    #accuracies = tf.math.logical_and(mask, accuracies)
 
     accuracies = tf.cast(accuracies, dtype=tf.float32)
-    mask = tf.cast(mask, dtype=tf.float32)
-    return tf.reduce_sum(accuracies)/tf.reduce_sum(mask)
+    #mask = tf.cast(mask, dtype=tf.float32)
+    return tf.reduce_sum(accuracies)/tf.size(accuracies,out_type=tf.float32)#/tf.reduce_sum(mask)
+
+
+def soft_absdiff(real,pred,sim_matrix):
+    '''
+    soft label absolute difference in real similarity and predicted score
+    the closer to 0 the better the model prediction of soft labels
+    real: [batch] vector of ground truth classes
+    pred: [batch x vocab size] matrix of batch prediction scores
+    sim_matrix: [vocab size x vocab size] matrix of class similarity scores
+    '''
+    real = tf.cast(real,tf.int32)
+    real_sim = tf.convert_to_tensor(sim_matrix[real,:], tf.float32)
+    # absolute diff
+    absdiff = tf.math.abs(tf.math.subtract(real_sim, pred))
+    
+    # "true positive-like" word absdiff performance
+    mask = tf.math.logical_not(tf.math.equal(real_sim, 0))
+    mask = tf.cast(mask,dtype=tf.float32)
+    tp_absdiff = absdiff * mask
+    tp_absdiff = tf.math.reduce_sum(tp_absdiff) / tf.math.reduce_sum(mask)
+    
+    # "true negative-like" word absdiff performance
+    mask = tf.math.equal(real_sim, 0)
+    mask = tf.cast(mask,dtype=tf.float32)
+    tn_absdiff = absdiff * mask
+    tn_absdiff = tf.math.reduce_sum(tn_absdiff) / tf.math.reduce_sum(mask)
+    pdb.set_trace()
+    return tf.math.reduce_mean(absdiff), tp_absdiff, tn_absdiff
 
 
 if __name__=='__main__':
-    # vocab_size = 3(包括padding) && batch_size = 3
+    import pdb
+    tf.compat.v1.enable_eager_execution()
+    
     real = tf.convert_to_tensor([2,1,0], tf.int32)
-    pred = tf.convert_to_tensor([[0.1,0.1,0.8],[0.3,0.6,0.1],[0.98,0.01,0.01]], tf.float32)
-    print(LableSmoothingLoss(real,pred,3,0.1))
-    print(Loss(real,pred))
+    pred = tf.convert_to_tensor([[0.1,0.1,0.8],
+                                 [0.3,0.6,0.1],
+                                 [0.98,0.01,0.01]], tf.float32)
+    sim_matrix = np.array([[1.0, 0.3, 0.0],
+                           [0.3, 1.0, 0.0],
+                           [0.5, 0.0, 1.0]])
+    print(sim_w_catcrossentropy_loss(real,pred,3,sim_matrix))
+    print(accuracy_function(real,pred))
+    print(soft_absdiff(real,pred,sim_matrix))
+    pdb.set_trace()
+    
+    #print(LableSmoothingLoss(real,pred,3,0.1))
+    #print(Loss(real,pred))
