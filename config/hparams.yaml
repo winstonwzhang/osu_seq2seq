@@ -15,7 +15,7 @@ feature:
     bin_per_oct: 12
     fmin: 27.5   # note A0 (lowest piano note)
     sr: 44100
-    extract_ms: 128  # ms to take spectrogram around each tick
+    extract_ms: 47  # ms to take spectrogram around each tick
 
 model:
     name: Osu_Transformer
