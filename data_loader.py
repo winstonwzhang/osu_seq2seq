@@ -152,7 +152,8 @@ class DataLoader():
 
                     # choose random .json file to use
                     json_fs = fileset[spec_f]
-                    json_f = random.choice(json_fs)
+                    #json_f = random.choice(json_fs)
+                    json_f = json_fs[-1]
                     with open(json_f) as json_fobj:
                         map_data = json.load(json_fobj)
 
