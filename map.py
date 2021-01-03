@@ -132,7 +132,7 @@ class Map:
         save_map(self.name, map_json)
     
     
-    def saveWords2JSON(self, json_path):
+    def saveWords2JSON(self, json_path, file_option):
         '''Saves difficulty, timing info, and word list into json'''
         # get uninherited timing section data
         time_bpm = []
@@ -159,7 +159,11 @@ class Map:
         out['time_bpm'] = time_bpm
         out['ticks'] = list(self.ticks)
         out['words'] = self.words
-        save_words(json_path,out)
+        
+        if file_option:
+            save_words(json_path,out)
+        else:
+            return out
     
     
     def getTick(self, timeidx):
@@ -310,7 +314,7 @@ def profile_map():
     m = Map.fromPath(osu_file)
     # encode then decode the hitobjects and try out the map
     obj_words = m.encodeTicks()
-    m.saveWords2JSON("songs/test.json")
+    m.saveWords2JSON("songs/test.json", True)
     
     #m_empty.decodeWords(obj_words)
     #m_empty.saveMap2Osu()

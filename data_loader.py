@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+import h5py
 import numpy as np
 import random
 from random import shuffle
@@ -15,7 +16,11 @@ def get_dataloaders(config, word2idx):
     '''load train dev and test sets'''
     
     print('getting spectrogram list...')
-    feat_files = os.listdir(config.feat_path)
+    try:
+        with h5py.File(config.feat_path,'r') as f:
+            feat_files = list(f.keys())
+    except:
+        feat_files = os.listdir(config.feat_path)
     
     # get jsons from spectrogram list
     print('getting json list from spectrograms present...')
