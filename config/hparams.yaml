@@ -5,7 +5,8 @@ data_name: osuMaps
 feat_path: /content/gdrive/MyDrive/projects/osumap/data/cqt
 word_path: /content/gdrive/MyDrive/projects/osumap/data/word_maps
 wav_path: /content/gdrive/MyDrive/projects/osumap/data/wavs
-diffs: insane
+log_path: /content/log/
+diffs: insane,extra
 seq_length: 32 # tick sequence length to use for both audio and words
 
 

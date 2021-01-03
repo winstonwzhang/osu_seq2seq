@@ -33,7 +33,11 @@ def get_dataloaders(config, word2idx):
             for feat_f in feat_files:
                 feat_fpath = config.feat_path + os.sep + feat_f
                 feat_basef = os.path.splitext(feat_f)[0]
-                fileset[feat_fpath] = [dirpath+os.sep+jf for jf in json_files if feat_basef in jf]
+                jf_matches = [dirpath+os.sep+jf for jf in json_files if feat_basef in jf]
+                if feat_fpath in fileset.keys():
+                    fileset[feat_fpath].extend(jf_matches)
+                else:
+                    fileset[feat_fpath] = jf_matches
                 # delete feat file if it has no json
                 if not fileset[feat_fpath]:
                     fileset.pop(feat_fpath,None)
