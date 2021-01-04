@@ -146,16 +146,18 @@ class Prenet(tf.keras.layers.Layer):
         tidim = x.shape[1]
         x = tf.reshape(x,(bdim*tidim, 1, x.shape[2], x.shape[3]))
         
-        x = self.c1(x)
-        x = self.c2(x)
+        #x = self.c1(x)
+        #x = self.c2(x)
         #x = self.bn1(x,training=training)
-        x = self.relu1(x)
-        x = self.maxpl1(x)
-        x = self.flatten(x)
-        x = self.dense1(x)
-        
+        #x = self.relu1(x)
+        #x = self.maxpl1(x)
+        #x = self.flatten(x)
+        #x = self.dense1(x)
+        xm = tf.math.reduce_mean(x,axis=-1)
+        xs = tf.math.reduce_std(x,axis=-1)
+        x = tf.concat([xm,xs],2)
         # now get tick dimension back (B,Ti,D)
-        x = tf.reshape(x,(bdim,tidim,self.d))
+        x = tf.reshape(x,(bdim,tidim,-1))
 
         return x
 
@@ -163,11 +165,17 @@ class Prenet(tf.keras.layers.Layer):
 if __name__=='__main__':
     
     import pdb
+    sess = tf.Session()
     #tf.compat.v1.enable_eager_execution()
     
     # prenet
     sample_prenet = Prenet()
-    print(sample_prenet(tf.random.uniform((32,32,96,8)), False).shape)
+    sampin = np.ones((32,32,96,8))
+    sampin[:,:,10:20,:] = 5
+    sampin = tf.convert_to_tensor(sampin, tf.float32)
+    out = sample_prenet(sampin, False)
+    out = out.eval(session=sess)
+    print(out.shape)
     prenet_w = sample_prenet.get_weights()
     for lw in prenet_w:
         print(lw.shape)
