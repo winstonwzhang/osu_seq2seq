@@ -28,7 +28,7 @@ def ClassWeightedWordSimilarityLoss(weights,sim_matrix,vocab_size):
         
         # Clip the prediction value to prevent NaN's and Inf's
         epsilon = K.epsilon()
-        y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
+        pred = K.clip(pred, epsilon, 1. - epsilon)
         
         # (real label one hot) dot product (similarity matrix)
         # [batch x seq x vocab] dot [vocab x vocab]
