@@ -40,6 +40,55 @@ def ClassWeightedWordSimilarityLoss(real,pred,weights,sim_matrix,vocab_size):
     return tf.reduce_mean(loss_)
 
 
+def categorical_focal_loss(alpha, gamma=2.,vocab_size=107):
+    """
+    Softmax version of focal loss.
+    When there is a skew between different categories/labels in your data set, you can try to apply this function as a
+    loss.
+           m
+      FL = ∑  -alpha * (1 - p_o,c)^gamma * y_o,c * log(p_o,c)
+          c=1
+      where m = number of classes, c = class and o = observation
+    Parameters:
+      alpha -- the same as weighing factor in balanced cross entropy. Alpha is used to specify the weight of different
+      categories/labels, the size of the array needs to be consistent with the number of classes.
+      gamma -- focusing parameter for modulating factor (1-p)
+    Default value:
+      gamma -- 2.0 as mentioned in the paper
+      alpha -- 0.25 as mentioned in the paper
+    References:
+        Official paper: https://arxiv.org/pdf/1708.02002.pdf
+        https://www.tensorflow.org/api_docs/python/tf/keras/backend/categorical_crossentropy
+    Usage:
+     model.compile(loss=[categorical_focal_loss(alpha=[[.25, .25, .25]], gamma=2)], metrics=["accuracy"], optimizer=adam)
+    """
+
+    alpha = np.array(alpha, dtype=np.float32)
+
+    def categorical_focal_loss_fixed(y_true, y_pred):
+        """
+        :param y_true: A tensor of the same shape as `y_pred`
+        :param y_pred: A tensor resulting from a softmax
+        :return: Output tensor.
+        """
+
+        # Clip the prediction value to prevent NaN's and Inf's
+        epsilon = K.epsilon()
+        y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
+
+        # Calculate Cross Entropy
+        y_true_oh = tf.one_hot(y_true,depth=vocab_size)
+        cross_entropy = -y_true_oh * K.log(y_pred)
+
+        # Calculate Focal Loss
+        loss = alpha * K.pow(1 - y_pred, gamma) * cross_entropy
+
+        # Compute mean loss in mini_batch
+        return K.mean(K.sum(loss, axis=-1))
+
+    return categorical_focal_loss_fixed
+
+
 def label_smoothing(inputs, epsilon=0.1):
     '''Applies label smoothing. See https://arxiv.org/abs/1512.00567.
     Args:
@@ -122,7 +171,15 @@ def soft_absdiff(real,pred,sim_matrix):
     sim_matrix: [vocab size x vocab size] matrix of class similarity scores
     '''
     real = tf.cast(real,tf.int32)
-    real_sim = tf.convert_to_tensor(sim_matrix[real,:], tf.float32)
+    real_onehot = tf.one_hot(real,depth=vocab_size)
+    
+    # (real label one hot) dot product (similarity matrix)
+    # [batch x seq x vocab] dot [vocab x vocab]
+    # output shape: [batch x seq x vocab]
+    # where each vector along the last [vocab] is no longer one-hot encoded,
+    # but instead the cosine similarity soft labels for that specific word class
+    real_sim = tf.tensordot(real_onehot,sim_matrix,axes=[[2],[0]])
+    pdb.set_trace()
     # absolute diff
     absdiff = tf.math.abs(tf.math.subtract(real_sim, pred))
     
@@ -137,6 +194,7 @@ def soft_absdiff(real,pred,sim_matrix):
     mask = tf.cast(mask,dtype=tf.float32)
     tn_absdiff = absdiff * mask
     tn_absdiff = tf.math.reduce_sum(tn_absdiff) / tf.math.reduce_sum(mask)
+    
     return tf.math.reduce_mean(absdiff), tp_absdiff, tn_absdiff
 
 
@@ -159,6 +217,10 @@ if __name__=='__main__':
                                        [0.3, 1.0, 0.0],
                                        [0.5, 0.0, 1.0]], tf.float32)
     
+    alpha = weights
+    loss_obj = categorical_focal_loss(alpha, gamma=2.,vocab_size=3)
+    testout = loss_obj(real,pred)
+    pdb.set_trace()
     print(ClassWeightedLabelSmoothingLoss(real,pred,weights,3,0.1))
     
     print(ClassWeightedWordSimilarityLoss(real,pred,weights,sim_matrix,3))
