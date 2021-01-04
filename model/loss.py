@@ -21,23 +21,30 @@ def ClassWeightedWordSimilarityLoss(real,pred,weights,sim_matrix,vocab_size):
     sim_matrix (FloatTensor): vocab_size x vocab size
     weights (FloatTensor): vocab size
     """
-    real = tf.cast(real,tf.int32)
-    real_onehot = tf.one_hot(real,depth=vocab_size)
     
-    # (real label one hot) dot product (similarity matrix)
-    # [batch x seq x vocab] dot [vocab x vocab]
-    # output shape: [batch x seq x vocab]
-    # where each vector along the last [vocab] is no longer one-hot encoded,
-    # but instead the cosine similarity soft labels for that specific word class
-    real_sim = tf.tensordot(real_onehot,sim_matrix,axes=[[2],[0]])
-    unweighted_loss = cat_loss_obj(real_sim, pred)
+    def cwwsLoss(real,pred):
+        real = tf.cast(real,tf.int32)
+        real_onehot = tf.one_hot(real,depth=vocab_size)
+        
+        # Clip the prediction value to prevent NaN's and Inf's
+        epsilon = K.epsilon()
+        y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
+        
+        # (real label one hot) dot product (similarity matrix)
+        # [batch x seq x vocab] dot [vocab x vocab]
+        # output shape: [batch x seq x vocab]
+        # where each vector along the last [vocab] is no longer one-hot encoded,
+        # but instead the cosine similarity soft labels for that specific word class
+        real_sim = tf.tensordot(real_onehot,sim_matrix,axes=[[2],[0]])
+        unweighted_loss = cat_loss_obj(real_sim, pred)
+        
+        # deduce weights for batch samples based on their true label
+        batch_weights = tf.reduce_sum(weights * real_onehot, axis=-1)
+        
+        loss_ = unweighted_loss * batch_weights
+        return tf.reduce_mean(loss_)
     
-    # deduce weights for batch samples based on their true label
-    batch_weights = tf.reduce_sum(weights * real_onehot, axis=-1)
-    
-    loss_ = unweighted_loss * batch_weights
-    
-    return tf.reduce_mean(loss_)
+    return cwwsLoss
 
 
 def categorical_focal_loss(alpha, gamma=2.,vocab_size=107):
