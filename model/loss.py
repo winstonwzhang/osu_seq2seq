@@ -60,16 +60,15 @@ def label_smoothing(inputs, epsilon=0.1):
 
 def ClassWeightedLabelSmoothingLoss(real,pred,weights,vocab_size,epsilon):
     """
-    pred (FloatTensor): batch_size x vocab_size
-    real (LongTensor): batch_size
+    pred (FloatTensor): batch_size x seq_len x vocab_size
+    real (LongTensor): batch_size x seq_len
     weights (FloatTensor): vocab_size
     """
     real = tf.cast(real,tf.int32)
     real_onehot = tf.one_hot(real,depth=vocab_size)
     
     # deduce weights for batch samples based on their true label
-    batch_weights = tf.reduce_sum(weights * real_onehot, axis=1)
-    
+    batch_weights = tf.reduce_sum(weights * real_onehot, axis=-1)
     real_smoothed = label_smoothing(real_onehot,epsilon)
     unweighted_loss = LabelSmoothing_loss_object(real_smoothed, pred)
     
@@ -133,11 +132,17 @@ if __name__=='__main__':
     import pdb
     tf.compat.v1.enable_eager_execution()
     
-    real = tf.convert_to_tensor([2,1,0], tf.int32)
-    pred = tf.convert_to_tensor([[0.1,0.1,0.8],
+    real = tf.convert_to_tensor([[2,1,0,1],
+                                 [0,1,1,2]], tf.int32)
+    pred = tf.convert_to_tensor([[[0.1,0.1,0.8],
                                  [0.3,0.6,0.1],
-                                 [0.98,0.01,0.01]], tf.float32)
-    weights = tf.convert_to_tensor([0.2, 0.3, 0.5], tf.float32)
+                                 [0.98,0.01,0.01],
+                                 [0.4,0.3,0.3]],
+                                [[0.1,0.1,0.8],
+                                 [0.3,0.6,0.1],
+                                 [0.98,0.01,0.01],
+                                 [0.4,0.3,0.3]]], tf.float32)
+    weights = tf.convert_to_tensor([0.4, 0.1, 0.5], tf.float32)
     sim_matrix = np.array([[1.0, 0.3, 0.0],
                            [0.3, 1.0, 0.0],
                            [0.5, 0.0, 1.0]])
