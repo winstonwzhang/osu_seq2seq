@@ -11,19 +11,31 @@ cat_loss_obj = tf.keras.losses.CategoricalCrossentropy(from_logits=True,
     reduction=tf.losses.Reduction.NONE)
 
 
-def sim_w_catcrossentropy_loss(real,pred,vocab_size,sim_matrix):
+def ClassWeightedWordSimilarityLoss(real,pred,weights,sim_matrix,vocab_size):
     """
-    pred (FloatTensor): batch_size x vocab_size
-    real (LongTensor): batch_size
-    sim_matrix (numpy matrix): vocab_size x vocab size
+    Classes weighted by frequency of occurrence in training set
+    Real labels replaced by soft label cosine similarity scores
+    
+    pred (FloatTensor): batch_size x sequence length x vocab_size
+    real (LongTensor): batch_size x sequence length
+    sim_matrix (FloatTensor): vocab_size x vocab size
+    weights (FloatTensor): vocab size
     """
-    #real = tf.cast(real,tf.int32)
-    #real_onehot = tf.one_hot(real,depth=vocab_size)
-    #orig_loss = cat_loss_obj(real_onehot,pred)
-    real_sim_np = sim_matrix[real,:]
-    real_sim = tf.cast(real_sim_np, tf.float32)
-    real_sim = tf.stop_gradient(real_sim)
-    loss_ = cat_loss_obj(real_sim, pred)
+    real = tf.cast(real,tf.int32)
+    real_onehot = tf.one_hot(real,depth=vocab_size)
+    
+    # (real label one hot) dot product (similarity matrix)
+    # [batch x seq x vocab] dot [vocab x vocab]
+    # output shape: [batch x seq x vocab]
+    # where each vector along the last [vocab] is no longer one-hot encoded,
+    # but instead the cosine similarity soft labels for that specific word class
+    real_sim = tf.tensordot(real_onehot,sim_matrix,axes=[[2],[0]])
+    unweighted_loss = cat_loss_obj(real_sim, pred)
+    
+    # deduce weights for batch samples based on their true label
+    batch_weights = tf.reduce_sum(weights * real_onehot, axis=-1)
+    
+    loss_ = unweighted_loss * batch_weights
     
     return tf.reduce_mean(loss_)
 
@@ -143,14 +155,15 @@ if __name__=='__main__':
                                  [0.98,0.01,0.01],
                                  [0.4,0.3,0.3]]], tf.float32)
     weights = tf.convert_to_tensor([0.4, 0.1, 0.5], tf.float32)
-    sim_matrix = np.array([[1.0, 0.3, 0.0],
-                           [0.3, 1.0, 0.0],
-                           [0.5, 0.0, 1.0]])
+    sim_matrix = tf.convert_to_tensor([[1.0, 0.3, 0.0],
+                                       [0.3, 1.0, 0.0],
+                                       [0.5, 0.0, 1.0]], tf.float32)
     
     print(ClassWeightedLabelSmoothingLoss(real,pred,weights,3,0.1))
+    
+    print(ClassWeightedWordSimilarityLoss(real,pred,weights,sim_matrix,3))
     pdb.set_trace()
     
-    print(sim_w_catcrossentropy_loss(real,pred,3,sim_matrix))
     print(accuracy_function(real,pred))
     print(soft_absdiff(real,pred,sim_matrix))
     pdb.set_trace()
