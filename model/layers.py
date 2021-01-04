@@ -148,7 +148,7 @@ class Prenet(tf.keras.layers.Layer):
         
         x = self.c1(x)
         x = self.c2(x)
-        x = self.bn1(x,training=training)
+        #x = self.bn1(x,training=training)
         x = self.relu1(x)
         x = self.maxpl1(x)
         x = self.flatten(x)
