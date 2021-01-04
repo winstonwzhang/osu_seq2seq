@@ -11,7 +11,7 @@ cat_loss_obj = tf.keras.losses.CategoricalCrossentropy(from_logits=True,
     reduction=tf.losses.Reduction.NONE)
 
 
-def ClassWeightedWordSimilarityLoss(real,pred,weights,sim_matrix,vocab_size):
+def ClassWeightedWordSimilarityLoss(weights,sim_matrix,vocab_size):
     """
     Classes weighted by frequency of occurrence in training set
     Real labels replaced by soft label cosine similarity scores
