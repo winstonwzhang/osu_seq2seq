@@ -8,10 +8,10 @@ def create_padding_mask(seq):
     :return: [batch_size, 1, 1, seq_len_k]
     '''
     if seq.dtype != np.int32:
-        print("float")
+        #print("float")
         seq = tf.cast(tf.math.equal(seq, 0.), tf.float32)
     else:
-        print("int")
+        #print("int")
         seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
 
     # add extra dimensions so that we can add the padding

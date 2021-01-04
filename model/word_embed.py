@@ -89,11 +89,11 @@ def get_vocab(d_model, sim_thresh=0.2):
     # similarity between words for weighted loss calculation
     sim = cosine_similarity(embed)
     # take power of 4 to reduce similarity of far apart words
-    sim = sim**4
+    sim = sim**5
     # take threshold of closest words for soft ground truth label
     # similar to this paper's approach
     # https://www.aclweb.org/anthology/D18-1525.pdf
-    sim[sim < sim_thresh] = 0
+    #sim[sim < sim_thresh] = 0
     
     return vocab, word2idx, embed, sim
 
