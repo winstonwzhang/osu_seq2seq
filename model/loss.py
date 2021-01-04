@@ -4,7 +4,8 @@ from tensorflow.keras import backend as K
 import numpy as np
 
 #loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-LabelSmoothing_loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+LabelSmoothing_loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True,
+    reduction=tf.losses.Reduction.NONE)
 
 cat_loss_obj = tf.keras.losses.CategoricalCrossentropy(from_logits=True,
     reduction=tf.losses.Reduction.NONE)
