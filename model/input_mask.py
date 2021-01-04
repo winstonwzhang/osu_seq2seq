@@ -53,8 +53,8 @@ def create_masks(inp, tar):
     # It is used to pad and mask future tokens in the input received by the decoder.
     look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
     dec_target_padding_mask = create_padding_mask(tar)
-    combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
-    #combined_mask = look_ahead_mask
+    #combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
+    combined_mask = look_ahead_mask
 
     # print('enc_padding_mask',enc_padding_mask)
     # print('combined_mask', combined_mask)
