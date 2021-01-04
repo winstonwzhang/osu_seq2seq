@@ -4,7 +4,7 @@ from tensorflow.keras import backend as K
 import numpy as np
 
 #loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-LableSmoothing_loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+LabelSmoothing_loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
 
 cat_loss_obj = tf.keras.losses.CategoricalCrossentropy(from_logits=True,
     reduction=tf.losses.Reduction.NONE)
@@ -20,7 +20,8 @@ def sim_w_catcrossentropy_loss(real,pred,vocab_size,sim_matrix):
     #real_onehot = tf.one_hot(real,depth=vocab_size)
     #orig_loss = cat_loss_obj(real_onehot,pred)
     real_sim_np = sim_matrix[real,:]
-    real_sim = tf.Variable(real_sim_np, trainable=False, dtype=tf.float32)
+    real_sim = tf.cast(real_sim_np, tf.float32)
+    real_sim = tf.stop_gradient(real_sim)
     loss_ = cat_loss_obj(real_sim, pred)
     
     return tf.reduce_mean(loss_)
@@ -55,15 +56,23 @@ def label_smoothing(inputs, epsilon=0.1):
     Kin = inputs.get_shape().as_list()[-1]  # number of channels
     return ((1 - epsilon) * inputs) + (epsilon / Kin)
 
-def LabelSmoothingLoss(real,pred,vocab_size,epsilon):
+
+def ClassWeightedLabelSmoothingLoss(real,pred,weights,vocab_size,epsilon):
     """
     pred (FloatTensor): batch_size x vocab_size
     real (LongTensor): batch_size
+    weights (FloatTensor): vocab_size
     """
     real = tf.cast(real,tf.int32)
-    real_smoothed = label_smoothing(tf.one_hot(real,depth=vocab_size),epsilon)
-    loss_ = LableSmoothing_loss_object(real_smoothed, pred)
-
+    real_onehot = tf.one_hot(real,depth=vocab_size)
+    
+    # deduce weights for batch samples based on their true label
+    batch_weights = tf.reduce_sum(weights * real_onehot, axis=1)
+    
+    real_smoothed = label_smoothing(real_onehot,epsilon)
+    unweighted_loss = LabelSmoothing_loss_object(real_smoothed, pred)
+    
+    loss_ = unweighted_loss * batch_weights
     #mask = tf.math.logical_not(tf.math.equal(real, 0))
     #mask = tf.cast(mask, dtype=loss_.dtype)
 
@@ -127,9 +136,14 @@ if __name__=='__main__':
     pred = tf.convert_to_tensor([[0.1,0.1,0.8],
                                  [0.3,0.6,0.1],
                                  [0.98,0.01,0.01]], tf.float32)
+    weights = tf.convert_to_tensor([0.2, 0.3, 0.5], tf.float32)
     sim_matrix = np.array([[1.0, 0.3, 0.0],
                            [0.3, 1.0, 0.0],
                            [0.5, 0.0, 1.0]])
+    
+    print(ClassWeightedLabelSmoothingLoss(real,pred,weights,3,0.1))
+    pdb.set_trace()
+    
     print(sim_w_catcrossentropy_loss(real,pred,3,sim_matrix))
     print(accuracy_function(real,pred))
     print(soft_absdiff(real,pred,sim_matrix))
