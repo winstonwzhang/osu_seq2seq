@@ -25,9 +25,9 @@ class Encoder(tf.keras.Model):
         self.input_proj = tf.keras.models.Sequential(name='en_proj')
         self.input_proj.add(tf.keras.layers.Dense(units=self.d_model,kernel_initializer='glorot_normal'))
         # self.input_proj.add(tf.keras.layers.Dropout(rate=dp))
-        self.input_proj.add(tf.keras.layers.LayerNormalization(epsilon=1e-6))
+        #self.input_proj.add(tf.keras.layers.LayerNormalization(epsilon=1e-6))
 
-        self.dropout = tf.keras.layers.Dropout(rate=0.1, name='en_proj_dp')
+        #self.dropout = tf.keras.layers.Dropout(rate=0.1, name='en_proj_dp')
 
         self.enc_layers = [EncoderLayer(d_model, num_heads, dff, 'EN'+str(_),dp)
                            for _ in range(num_layers)]
@@ -48,7 +48,7 @@ class Encoder(tf.keras.Model):
         # print('dropout.rate: ',str(self.dropout.rate))
         # self.dropout.rate = self.rate
         # print('dropout.rate: ', str(self.dropout.rate))
-        x = self.dropout(x, training=training)
+        #x = self.dropout(x, training=training)
 
         for i in range(self.num_layers):
             x = self.enc_layers[i](x, training, mask)

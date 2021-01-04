@@ -37,12 +37,12 @@ def positional_encoding(position, d_model):
 if __name__=='__main__':
     tf.compat.v1.enable_eager_execution()
     
-    pos_encoding = positional_encoding(50, 512)
+    pos_encoding = positional_encoding(107, 256)
     print (pos_encoding.shape)
     
     plt.pcolormesh(pos_encoding[0], cmap='RdBu')
     plt.xlabel('Depth')
-    plt.xlim((0, 512))
+    plt.xlim((0, 256))
     plt.ylabel('Position')
     plt.colorbar()
     plt.show()
