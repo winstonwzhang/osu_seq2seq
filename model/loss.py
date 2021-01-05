@@ -27,8 +27,8 @@ def ClassWeightedWordSimilarityLoss(weights,sim_matrix,vocab_size):
         real_onehot = tf.one_hot(real,depth=vocab_size)
         
         # Clip the prediction value to prevent NaN's and Inf's
-        epsilon = K.epsilon()
-        pred = K.clip(pred, epsilon, 1. - epsilon)
+        #epsilon = K.epsilon()
+        #pred = K.clip(pred, epsilon, 1. - epsilon)
         
         # (real label one hot) dot product (similarity matrix)
         # [batch x seq x vocab] dot [vocab x vocab]
@@ -42,6 +42,7 @@ def ClassWeightedWordSimilarityLoss(weights,sim_matrix,vocab_size):
         batch_weights = tf.reduce_sum(weights * real_onehot, axis=-1)
         
         loss_ = unweighted_loss * batch_weights
+        pdb.set_trace()
         return tf.reduce_mean(loss_)
     
     return cwwsLoss
@@ -214,24 +215,26 @@ if __name__=='__main__':
     pred = tf.convert_to_tensor([[[0.1,0.1,0.8],
                                  [0.3,0.6,0.1],
                                  [0.98,0.01,0.01],
-                                 [0.4,0.3,0.3]],
+                                 [0.1,0.6,0.3]],
                                 [[0.1,0.1,0.8],
                                  [0.3,0.6,0.1],
                                  [0.98,0.01,0.01],
                                  [0.4,0.3,0.3]]], tf.float32)
-    weights = tf.convert_to_tensor([0.4, 0.1, 0.5], tf.float32)
-    sim_matrix = tf.convert_to_tensor([[1.0, 0.3, 0.0],
-                                       [0.3, 1.0, 0.0],
-                                       [0.5, 0.0, 1.0]], tf.float32)
+    weights = tf.convert_to_tensor([0.1, 0.8, 0.1], tf.float32)
+    sim_matrix = tf.convert_to_tensor([[1.0, 0.0, 0.0],
+                                       [0.0, 1.0, 0.0],
+                                       [0.0, 0.0, 1.0]], tf.float32)
+    
+    
+    loss_obj = ClassWeightedWordSimilarityLoss(weights,sim_matrix,3)
+    print(loss_obj(real,pred))
+    pdb.set_trace()
     
     alpha = weights
     loss_obj = categorical_focal_loss(alpha, gamma=2.,vocab_size=3)
     testout = loss_obj(real,pred)
-    pdb.set_trace()
-    print(ClassWeightedLabelSmoothingLoss(real,pred,weights,3,0.1))
     
-    print(ClassWeightedWordSimilarityLoss(real,pred,weights,sim_matrix,3))
-    pdb.set_trace()
+    print(ClassWeightedLabelSmoothingLoss(real,pred,weights,3,0.1))
     
     print(accuracy_function(real,pred))
     print(soft_absdiff(real,pred,sim_matrix))
