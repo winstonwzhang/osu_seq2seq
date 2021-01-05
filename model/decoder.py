@@ -30,8 +30,8 @@ class Decoder(tf.keras.Model):
         # try just one-hot pos encoding
         #self.pos_encoding = tf.one_hot(np.arange(pe_max_len),depth=self.d_model)
 
-        self.dec_layers = [DecoderLayer(d_model, num_heads, dff, 'DE'+str(_),rate)
-                           for _ in range(num_layers)]
+        #self.dec_layers = [DecoderLayer(d_model, num_heads, dff, 'DE'+str(_),rate)
+        #                   for _ in range(num_layers)]
         self.dropout = tf.keras.layers.Dropout(rate,name='de_emb_dp')
 
         self.final_layer = tf.keras.layers.Dense(target_vocab_size)
@@ -54,13 +54,13 @@ class Decoder(tf.keras.Model):
         x += (pos_enc * norm_c / tf.cast(32,tf.float32))
 
         x = self.dropout(x, training=training)
-
-        for i in range(self.num_layers):
-            x, block1, block2 = self.dec_layers[i](x, enc_output, training,
-                                                   look_ahead_mask, padding_mask)
-
-            attention_weights['decoder_layer{}_block1'.format(i + 1)] = block1
-            attention_weights['decoder_layer{}_block2'.format(i + 1)] = block2
+        
+        x = x + enc_output
+        #for i in range(self.num_layers):
+        #    x, block1, block2 = self.dec_layers[i](x, enc_output, training,
+        #                                           look_ahead_mask, padding_mask)
+        #    attention_weights['decoder_layer{}_block1'.format(i + 1)] = block1
+        #    attention_weights['decoder_layer{}_block2'.format(i + 1)] = block2
 
         # before softmax
         x = self.final_layer(x)
