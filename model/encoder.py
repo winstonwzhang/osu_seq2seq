@@ -41,7 +41,8 @@ class Encoder(tf.keras.Model):
         #x = tf.reshape(x,[x.shape[0],x.shape[1],-1])
 
         # doing projection and adding position encoding.
-        x = self.input_proj(x)  # (batch_size, input_seq_len, d_model)
+        #x = self.input_proj(x)  # (batch_size, input_seq_len, d_model)
+        x = x[:,:,:self.d_model]
         # x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x += tf.cast(self.pos_encoding[:, :seq_len, :], x.dtype)
 
@@ -60,9 +61,11 @@ if __name__=='__main__':
     
     tf.compat.v1.enable_eager_execution()
 
-    sample_encoder = Encoder(num_layers=2, d_model=256, num_heads=8,dff=1024, pe_max_len=8500,name='Encoder',dp=0.1)
+    sample_encoder = Encoder(num_layers=1, d_model=128, num_heads=4,dff=256, pe_max_len=32,name='Encoder',dp=0.1)
 
     sample_encoder_output = sample_encoder((tf.random.normal((32,32,512)),None),training=True)
 
     print(sample_encoder.summary())
     print(sample_encoder_output.shape)  # (batch_size, input_seq_len, d_model)
+    import pdb
+    pdb.set_trace()
