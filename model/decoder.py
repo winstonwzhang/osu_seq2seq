@@ -28,7 +28,7 @@ class Decoder(tf.keras.Model):
         
         #self.pos_encoding = positional_encoding(pe_max_len, self.d_model)
         # try just one-hot pos encoding
-        self.pos_encoding = tf.one_hot(np.arange(pe_max_len,depth=self.d_model))
+        self.pos_encoding = tf.one_hot(np.arange(pe_max_len),depth=self.d_model)
 
         self.dec_layers = [DecoderLayer(d_model, num_heads, dff, 'DE'+str(_),rate)
                            for _ in range(num_layers)]
