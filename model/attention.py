@@ -99,14 +99,14 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         self.depth = d_model // self.num_heads
 
         # https://github.com/kaituoxu/Speech-Transformer/blob/master/src/transformer/attention.py#L19
-        init  = tf.compat.v1.keras.initializers.RandomNormal(
-            mean=0,stddev=np.sqrt(2.0 / (d_model + self.depth)))
-        # init = tf.keras.initializers.glorot_normal()
+        #init  = tf.compat.v1.keras.initializers.RandomNormal(
+        #    mean=0,stddev=np.sqrt(2.0 / (d_model + self.depth)))
+        #init = tf.keras.initializers.glorot_normal()
         
         # first dimension is not batch size since we are broadcasting
-        self.wq = tf.keras.layers.Dense(d_model,kernel_initializer=init) # (feature_in_dim, d_model)
-        self.wk = tf.keras.layers.Dense(d_model,kernel_initializer=init) # (feature_in_dim, d_model)
-        self.wv = tf.keras.layers.Dense(d_model,kernel_initializer=init) # (feature_in_dim, d_model)
+        self.wq = tf.keras.layers.Dense(d_model)#,kernel_initializer=init) # (feature_in_dim, d_model)
+        self.wk = tf.keras.layers.Dense(d_model)#,kernel_initializer=init) # (feature_in_dim, d_model)
+        self.wv = tf.keras.layers.Dense(d_model)#,kernel_initializer=init) # (feature_in_dim, d_model)
 
         self.dense = tf.keras.layers.Dense(d_model,kernel_initializer='glorot_normal')# (feature_in_dim, d_model)
 

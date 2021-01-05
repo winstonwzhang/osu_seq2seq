@@ -36,7 +36,8 @@ def construct_embed(vocab,d_model=128):
     d_model must be >= 15
     '''
     # custom embedding
-    Y = np.zeros((len(vocab), d_model))
+    d_custom = 15
+    Y = np.zeros((len(vocab), d_custom))
     for i,w in enumerate(vocab):
         if '_' in w:
             w1,w2,w3 = w.split('_')
@@ -71,6 +72,12 @@ def construct_embed(vocab,d_model=128):
         elif w == 'b': Y[i,13] = 1
         elif w == 'e': Y[i,14] = 1
     
+    # extend coding along entire length of [d_model] vector
+    reps, rem = np.divmod(d_model, d_custom)
+    Y = np.tile(Y,(1,reps))
+    # pad right side remaining cols with zeros
+    Y = np.pad(Y, ((0,0),(0,rem)), mode='constant', constant_values=0)
+    
     # normalize embeddings
     r_sums = Y.sum(axis=1)
     nY = Y / r_sums[:,np.newaxis]
@@ -103,8 +110,13 @@ def visualize_embeddings(vocab, embed):
     # tsne
     from sklearn.manifold import TSNE
     import matplotlib.pyplot as plt
+    
+    # show embedding matrix
+    plt.figure(figsize=(12,7))
+    plt.imshow(embed)
+    plt.show()
 
-    # normalize X
+    # get 2 dimensional representations
     new_embed = TSNE(n_components=2).fit_transform(embed)
     
     plt.figure(figsize=(20,11))

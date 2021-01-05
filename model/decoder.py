@@ -26,7 +26,9 @@ class Decoder(tf.keras.Model):
             self.embedding.build((None,))
             self.embedding.set_weights([vocab_embed])
         
-        self.pos_encoding = positional_encoding(pe_max_len, self.d_model)
+        #self.pos_encoding = positional_encoding(pe_max_len, self.d_model)
+        # try just one-hot pos encoding
+        self.pos_encoding = tf.one_hot(np.arange(pe_max_len,depth=self.d_model))
 
         self.dec_layers = [DecoderLayer(d_model, num_heads, dff, 'DE'+str(_),rate)
                            for _ in range(num_layers)]
@@ -45,8 +47,11 @@ class Decoder(tf.keras.Model):
         attention_weights = {}
 
         x = self.embedding(x)  # (batch_size, target_seq_len, d_model)
-        x *= tf.math.rsqrt(tf.cast(self.d_model, tf.float32))
-        x += tf.cast(self.pos_encoding[:, :seq_len, :],x.dtype)
+        norm_c = tf.math.rsqrt(tf.cast(self.d_model, tf.float32))
+        x *= norm_c  # normalize embedding vectors by sqrt(1 / model dimension)
+        pos_enc = tf.cast(self.pos_encoding[:, :seq_len, :],x.dtype)
+        # scale pos encoding 8 times lower to prevent masking word embed
+        x += (pos_enc * norm_c / tf.cast(8,tf.float32))
 
         x = self.dropout(x, training=training)
 

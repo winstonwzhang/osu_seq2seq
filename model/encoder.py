@@ -43,8 +43,11 @@ class Encoder(tf.keras.Model):
         # doing projection and adding position encoding.
         #x = self.input_proj(x)  # (batch_size, input_seq_len, d_model)
         x = x[:,:,:self.d_model]
-        # x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-        x += tf.cast(self.pos_encoding[:, :seq_len, :], x.dtype)
+        norm_c = tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x *= norm_c
+        
+        pos_enc = tf.cast(self.pos_encoding[:, :seq_len, :],x.dtype)
+        x += (pos_enc * norm_c / tf.cast(8,tf.float32))
 
         # print('dropout.rate: ',str(self.dropout.rate))
         # self.dropout.rate = self.rate
