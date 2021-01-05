@@ -29,8 +29,8 @@ class Encoder(tf.keras.Model):
 
         #self.dropout = tf.keras.layers.Dropout(rate=0.1, name='en_proj_dp')
 
-        #self.enc_layers = [EncoderLayer(d_model, num_heads, dff, 'EN'+str(_),dp)
-        #                   for _ in range(num_layers)]
+        self.enc_layers = [EncoderLayer(d_model, num_heads, dff, 'EN'+str(_),dp)
+                           for _ in range(num_layers)]
 
     def call(self, inputs, training):
         
@@ -54,8 +54,8 @@ class Encoder(tf.keras.Model):
         # print('dropout.rate: ', str(self.dropout.rate))
         #x = self.dropout(x, training=training)
 
-        #for i in range(self.num_layers):
-        #    x = self.enc_layers[i](x, training, mask)
+        for i in range(self.num_layers):
+            x = self.enc_layers[i](x, training, mask)
 
         return x  # (batch_size, input_seq_len, d_model)
 
