@@ -68,9 +68,9 @@ def construct_embed(vocab,d_model=128):
             elif w3 == 'm': Y[i,9] = 0; Y[i,10] = 1; Y[i,11] = 0.5
             elif w3 == 'f': Y[i,9] = 0; Y[i,10] = 0.5; Y[i,11] = 1
 
-        elif w == 'spin': Y[i,12] = 1
-        elif w == 'b': Y[i,13] = 1
-        elif w == 'e': Y[i,14] = 1
+        elif w == 'spin': Y[i,12] = 0.25
+        elif w == 'b': Y[i,13] = 0.25
+        elif w == 'e': Y[i,14] = 0.25
     
     # extend coding along entire length of [d_model] vector
     reps, rem = np.divmod(d_model, d_custom)

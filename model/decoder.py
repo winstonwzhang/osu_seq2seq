@@ -51,7 +51,7 @@ class Decoder(tf.keras.Model):
         x *= norm_c  # normalize embedding vectors by sqrt(1 / model dimension)
         pos_enc = tf.cast(self.pos_encoding[:, :seq_len, :],x.dtype)
         # scale pos encoding 8 times lower to prevent masking word embed
-        x += (pos_enc * norm_c / tf.cast(8,tf.float32))
+        x += (pos_enc * norm_c / tf.cast(32,tf.float32))
 
         x = self.dropout(x, training=training)
 
