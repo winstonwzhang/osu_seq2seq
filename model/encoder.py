@@ -22,8 +22,8 @@ class Encoder(tf.keras.Model):
 
         self.pos_encoding = positional_encoding(pe_max_len, self.d_model)
 
-        self.input_proj = tf.keras.models.Sequential(name='en_proj')
-        self.input_proj.add(tf.keras.layers.Dense(units=self.d_model,kernel_initializer='glorot_normal'))
+        #self.input_proj = tf.keras.models.Sequential(name='en_proj')
+        #self.input_proj.add(tf.keras.layers.Dense(units=self.d_model,kernel_initializer='glorot_normal'))
         # self.input_proj.add(tf.keras.layers.Dropout(rate=dp))
         #self.input_proj.add(tf.keras.layers.LayerNormalization(epsilon=1e-6))
 
