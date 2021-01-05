@@ -42,7 +42,7 @@ def ClassWeightedWordSimilarityLoss(weights,sim_matrix,vocab_size):
         batch_weights = tf.reduce_sum(weights * real_onehot, axis=-1)
         
         loss_ = unweighted_loss * batch_weights
-        pdb.set_trace()
+        
         return tf.reduce_mean(loss_)
     
     return cwwsLoss
