@@ -90,6 +90,8 @@ class Word:
     SPINNER = 'spin'
     BREAK = 'b'
     EMPTY = 'e'
+    # object string to int dictionary
+    obj_str2int = dict([(y,x) for x,y in enumerate(['e','b','spin','h','slb','slc','sle'])])
     
     # cardinal direction: radian thresholds
     t_NNE = np.pi/8
@@ -115,6 +117,8 @@ class Word:
            'S': [-1.0, 0.0],
            'SE': [-r22, -r22]
            }
+    # direction string to int dictionary
+    dir_str2int = dict([(y,x) for x,y in enumerate(['E','NE','N','NW','W','SW','S','SE'])])
     
     # velocity: osu!pixel per tick thresholds (non-slider)
     t_CRAWL = 0
@@ -132,6 +136,8 @@ class Word:
     SLOW = 's'
     MED = 'm'
     FAST = 'f'
+    # velocity string to int dictionary
+    vel_str2int = dict([(y,x) for x,y in enumerate(['c','s','m','f'])])
 
 
 def getDistanceSubword(tickmag, slider=None):
@@ -647,6 +653,41 @@ def decodeWords2JSON(M, words):
         
         ti += 1  # advance to next word
 
+
+def decodeMap2Array(M):
+    '''
+    Decodes map and its sequence of Word strings into numpy array
+    Requires Map object containing words, offset, ticks, and timing info
+    This function returns 2 arrays
+    One float arr for tick times and one int arr for words
+    '''
+    Mwords = M.words
+    Mticks = M.ticks
+    
+    # tick times array
+    # save on memory with single-precision float
+    tick_arr = np.array(Mticks, dtype=np.float32)
+    
+    # words array
+    # 3 columns, 1 - obj, 2 - direction, 3 - velocity
+    obj_list, dir_list, vel_list = [],[],[]
+    for w in Mwords:
+        if '_' in w:
+            sw1, sw2, sw3 = w.split('_')
+            obj_list.append(sw1)
+            dir_list.append(sw2)
+            vel_list.append(sw3)
+        else:
+            obj_list.append(w)
+            dir_list.append(Word.E)
+            vel_list.append(Word.CRAWL)
+    
+    word_arr = np.zeros((len(Mticks),3), dtype=np.uint8)
+    word_arr[:,0] = np.array([Word.obj_str2int[x] for x in obj_list], dtype=np.uint8)
+    word_arr[:,1] = np.array([Word.dir_str2int[x] for x in dir_list], dtype=np.uint8)
+    word_arr[:,2] = np.array([Word.vel_str2int[x] for x in vel_list], dtype=np.uint8)
+    
+    return tick_arr, word_arr
 
 
 

@@ -132,6 +132,49 @@ class Map:
         save_map(self.name, map_json)
     
     
+    def saveMap2Array(self,np_path,file_option):
+        '''Saves ticks and words into numpy array format'''
+        # this func returns 2 arrays
+        # one float arr for tick times and one int arr for words
+        tick_arr, word_arr = decodeMap2Array(self)
+        
+        if file_option:
+            np.savez(np_path,ticks=tick_arr,words=word_arr)
+        else:
+            return tick_arr, word_arr
+    
+    
+    def saveMap2HitLabels(self,wav_len,num_bins,np_path,file_option):
+        '''
+        Translates ticks and words into label array with length N
+        where N is the number of time bins in the spectrogram
+        num_bins = (wav_len / [bin_len])+1
+        Inputs: wav_len - length of cropped audio in seconds
+                    num_bins - number of time bins in mel spectrogram
+        Outputs: labels - array with length num_bins indicating 
+                                 class of hit object at every time bin
+        '''
+        N = num_bins
+        bin_len = wav_len / (num_bins-1)  # length of each time bin in seconds
+        bin_in_sec = 1 / bin_len  # number of bins in every second
+        
+        labels = np.zeros((N,), dtype=np.uint8)
+        
+        # this func returns 2 arrays
+        # one float arr for tick times and one int arr for words
+        tick_arr, word_arr = decodeMap2Array(self)
+        
+        # convert ticks (ms) to time bin indices
+        tbi = np.floor((tick_arr/1000) * bin_in_sec).astype(np.int)
+        # hit object classes
+        labels[tbi] = word_arr[:,0]
+        
+        if file_option:
+            np.save(np_path,labels)
+        else:
+            return labels
+        
+    
     def saveWords2JSON(self, json_path, file_option):
         '''Saves difficulty, timing info, and word list into json'''
         # get uninherited timing section data
@@ -191,6 +234,10 @@ class Map:
         sx_mult = cur_T['speedMultiplier']
         # if bpm was doubled make sure to double slider tick lengths as well
         length = sliderobj['length'] * ui_T['sliderLengthMult']
+        # length: slider length in osupixels 
+        # c_sx: base slider velocity in hundreds of osupixels per beat
+        # sx_mult: velocity multiplier for this timing section
+        # blen: duration of a beat in ms
         slide_time = length / (self.c_sx*sx_mult*100) * blen
         total_slide_time = slide_time * (sliderobj['repeatCount'] + 1)
         return slide_time, total_slide_time
@@ -289,32 +336,56 @@ class Map:
 def profile_map():
     # for testing only
     #filename = "Our Stolen Theory - United (L.A.O.S Remix) (Asphyxia) [Infinity]"
-    #filename = "Will Stetson - Despacito ft. R3 Music Box (Sotarks) [Monstrata's Slow Expert]"
-    filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
+    filename = "Will Stetson - Despacito ft. R3 Music Box (Sotarks) [Monstrata's Slow Expert]"
+    #filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
     #filename = "Caravan Palace - Miracle (Mulciber) [Extra]"
     #filename = "xi - FREEDOM DiVE (Pikastar) [Universe]"
+    #filename = "DM Ashura - Classical Insanity (Louis Cyphre) [Vivacissimo]"
     
     osu_file = "songs/osu_mp3/" + filename + ".osu"
     mp3_file = "songs/osu_mp3/" + filename + ".mp3"
     
     # [Time(ms), bpm, meter(beats per measure)]
+    # bpm = 1 / [tick_length] * 1000 * 60
     # assume timing is found beforehand
     #time_bpm = [[15688, 175, 4]]
-    #time_bpm = [[540,91,4],[2245,89,4]]
-    time_bpm = [[1342,180,4]]
+    time_bpm = [[540,91,4],[2245,89,4]]
+    #time_bpm = [[1342,180,4]]
     #time_bpm = [[-30,200,4]]
     #time_bpm = [[2133,222.22,4]]
+    #time_bpm = [[38,175,4]]
     
-    import librosa
-    sec_len = librosa.get_duration(filename=mp3_file)
-    mp3_len = sec_len * 1000
-    m_empty = Map.fromTiming(time_bpm,mp3_file,mp3_len=mp3_len)
+    #import librosa
+    #sec_len = librosa.get_duration(filename=mp3_file)
+    #mp3_len = sec_len * 1000
+    #m_empty = Map.fromTiming(time_bpm,mp3_file,mp3_len=mp3_len)
     
     # read actual .osu map
     m = Map.fromPath(osu_file)
     # encode then decode the hitobjects and try out the map
     obj_words = m.encodeTicks()
-    m.saveWords2JSON("songs/test.json", True)
+    #m.saveWords2JSON("songs/test.json", True)
+    
+    # visualize words
+    #ticks, words = m.saveMap2Array(None,False)
+    #objs = words[:,0]
+    #idx = np.arange(len(objs))
+    #plt.scatter(idx[objs>3], objs[objs>3])
+    #plt.scatter(idx[objs<3], objs[objs<3])
+    #plt.scatter(idx[objs==3], objs[objs==3])
+    #plt.show()
+    #pdb.set_trace()
+    
+    # visualize labels
+    import librosa
+    sec_len = librosa.get_duration(filename=mp3_file)
+    sample_len = 16000 * sec_len
+    crop_len = int(np.floor(sample_len / 512) * 512)
+    crop_sec = crop_len / 16000
+    num_bins = round(crop_len / 512) + 1
+    labels = m.saveMap2HitLabels(crop_sec,num_bins,None,False)
+    
+    pdb.set_trace()
     
     #m_empty.decodeWords(obj_words)
     #m_empty.saveMap2Osu()
