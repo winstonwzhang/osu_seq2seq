@@ -164,6 +164,8 @@ class Map:
         # one float arr for tick times and one int arr for words
         tick_arr, word_arr = decodeMap2Array(self)
         
+        # add beginning of map offset to ticks
+        tick_arr = tick_arr + self.offset
         # convert ticks (ms) to time bin indices
         tbi = np.floor((tick_arr/1000) * bin_in_sec).astype(np.int)
         # hit object classes
