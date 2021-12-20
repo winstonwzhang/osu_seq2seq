@@ -1,0 +1,53 @@
+units_type: tick
+feature_source: librosa
+feature_type: mel
+data_name: osuMaps
+log_path: /content/log/
+diffs: normal
+
+
+feature:
+    fmin: 30
+    sr: 16000
+
+model:
+    name: Osu_onset
+    dropout: 0.1
+
+train:
+    shuffle: True
+    sample_size: 4  # number of sequences to take from each song spectrogram
+    batch_size: 8  # number of unique song spectrograms in a batch
+    percent: 0.7  # percentage of all song spectrograms to use for training
+    batch_frames: 20000
+    use_gpu: True
+    num_gpu: 1
+    gpu_ids: 0
+    max_steps: 100000 # need to be modified
+    epoches: 30 # need to be specified
+    visualization: True
+    show_interval: 10
+    save_model: osu_seq2seq/log/saved_models/
+    dev_on_training: False
+
+dev:
+    shuffle: True
+    sample_size: 4  # number of sequences to take from each song spectrogram
+    batch_size: 8  # number of unique song spectrograms in a batch
+    percent: 0.15
+
+test:
+    shuffle: False
+    sample_size: 4  # number of sequences to take from each song spectrogram
+    batch_size: 8  # number of unique song spectrograms in a batch
+    percent: 0.15
+
+optimizer:
+    warmup_n: 25000
+    k: 10  # note: decreased k to 1 when the model converged
+    beta1: 0.9
+    beta2: 0.98
+    epsilon: 1.0e-9
+
+debug:
+    batch_size: 4
