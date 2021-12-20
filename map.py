@@ -164,8 +164,6 @@ class Map:
         # one float arr for tick times and one int arr for words
         tick_arr, word_arr = decodeMap2Array(self)
         
-        # add beginning of map offset to ticks
-        tick_arr = tick_arr + self.offset
         # convert ticks (ms) to time bin indices
         tbi = np.floor((tick_arr/1000) * bin_in_sec).astype(np.int)
         # hit object classes
@@ -338,20 +336,22 @@ class Map:
 def profile_map():
     # for testing only
     #filename = "Our Stolen Theory - United (L.A.O.S Remix) (Asphyxia) [Infinity]"
-    filename = "Will Stetson - Despacito ft. R3 Music Box (Sotarks) [Monstrata's Slow Expert]"
+    #filename = "Will Stetson - Despacito ft. R3 Music Box (Sotarks) [Monstrata's Slow Expert]"
     #filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
     #filename = "Caravan Palace - Miracle (Mulciber) [Extra]"
     #filename = "xi - FREEDOM DiVE (Pikastar) [Universe]"
     #filename = "DM Ashura - Classical Insanity (Louis Cyphre) [Vivacissimo]"
+    filename = "652886 Wisp X - Wander [Insane]"
     
     osu_file = "songs/osu_mp3/" + filename + ".osu"
     mp3_file = "songs/osu_mp3/" + filename + ".mp3"
+    wav_file = "songs/osu_mp3/" + filename + ".wav"
     
     # [Time(ms), bpm, meter(beats per measure)]
     # bpm = 1 / [tick_length] * 1000 * 60
     # assume timing is found beforehand
     #time_bpm = [[15688, 175, 4]]
-    time_bpm = [[540,91,4],[2245,89,4]]
+    #time_bpm = [[540,91,4],[2245,89,4]]
     #time_bpm = [[1342,180,4]]
     #time_bpm = [[-30,200,4]]
     #time_bpm = [[2133,222.22,4]]
@@ -380,7 +380,7 @@ def profile_map():
     
     # visualize labels
     import librosa
-    sec_len = librosa.get_duration(filename=mp3_file)
+    sec_len = librosa.get_duration(filename=wav_file)
     sample_len = 16000 * sec_len
     crop_len = int(np.floor(sample_len / 512) * 512)
     crop_sec = crop_len / 16000
