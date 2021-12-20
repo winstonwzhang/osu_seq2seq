@@ -166,6 +166,8 @@ class Map:
         
         # convert ticks (ms) to time bin indices
         tbi = np.floor((tick_arr/1000) * bin_in_sec).astype(np.int)
+        # shift one bin into the future due to spectrogram bin number +1
+        tbi = tbi + 1
         # hit object classes
         labels[tbi] = word_arr[:,0]
         
