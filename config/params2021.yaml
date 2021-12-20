@@ -7,19 +7,23 @@ diffs: normal
 
 
 feature:
-    fmin: 30
-    sr: 16000
+    sr: 16000  # sampling rate
+    nfft: 2048  # number of samples in fft window
+    hop: 512  # hop length in samples
+    n_mels: 229  # number of mel spectrogram frequency rows
+    sec_p_bin: 0.032  # hop length / sr
+    bin_p_sec: 31.25  # sr / hop length
+    fmin: 30  # minimum frequency
 
 model:
     name: Osu_onset
+    sample_sec: 20  # number of seconds in each sample spectrogram
     dropout: 0.1
 
 train:
     shuffle: True
-    sample_size: 4  # number of sequences to take from each song spectrogram
     batch_size: 8  # number of unique song spectrograms in a batch
     percent: 0.7  # percentage of all song spectrograms to use for training
-    batch_frames: 20000
     use_gpu: True
     num_gpu: 1
     gpu_ids: 0
