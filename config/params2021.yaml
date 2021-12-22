@@ -19,6 +19,7 @@ model:
     name: Osu_onset
     sample_sec: 20  # number of seconds in each sample spectrogram
     dropout: 0.1
+    lstm: 0  # whether to use bilstm layer or not
 
 train:
     shuffle: True
@@ -28,7 +29,7 @@ train:
     num_gpu: 1
     gpu_ids: 0
     max_steps: 100000 # need to be modified
-    epoches: 30 # need to be specified
+    epochs: 30 # need to be specified
     visualization: True
     show_interval: 10
     save_model: osu_seq2seq/log/saved_models/

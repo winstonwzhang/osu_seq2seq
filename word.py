@@ -92,7 +92,8 @@ class Word:
     EMPTY = 'e'
     # object string to int dictionary
     obj_str2int = dict([(y,x) for x,y in enumerate(['e','b','spin','h','slb','slc','sle'])])
-    
+    obj_int2str = {v: k for k,v in obj_str2int.items()}
+   
     # cardinal direction: radian thresholds
     t_NNE = np.pi/8
     t_NEE = np.pi*3/8
@@ -119,6 +120,7 @@ class Word:
            }
     # direction string to int dictionary
     dir_str2int = dict([(y,x) for x,y in enumerate(['E','NE','N','NW','W','SW','S','SE'])])
+    dir_int2str = {v: k for k,v in dir_str2int.items()}
     
     # velocity: osu!pixel per tick thresholds (non-slider)
     t_CRAWL = 0
@@ -138,6 +140,7 @@ class Word:
     FAST = 'f'
     # velocity string to int dictionary
     vel_str2int = dict([(y,x) for x,y in enumerate(['c','s','m','f'])])
+    vel_int2str = {v: k for k,v in vel_str2int.items()}
 
 
 def getDistanceSubword(tickmag, slider=None):
@@ -688,6 +691,32 @@ def decodeMap2Array(M):
     word_arr[:,2] = np.array([Word.vel_str2int[x] for x in vel_list], dtype=np.uint8)
     
     return tick_arr, word_arr
+
+
+def encodeArray2Map(M, word_arr):
+    '''
+    Encodes map and numpy array into a sequence of Word strings
+    Requires Map object containing words, offset, ticks, and timing info
+    This function stores the words from the array into the map object
+    Returns generated word strings
+    '''
+    obj_list = [Word.obj_int2str[x] for x in word_arr[:,0]]
+    dir_list = [Word.dir_int2str[x] for x in word_arr[:,1]]
+    vel_list = [Word.vel_int2str[x] for x in word_arr[:,2]]
+    
+    Mwords = []
+    for sw1, sw2, sw3 in zip(obj_list, dir_list, vel_list):
+        if sw1 == Word.HITCIRCLE or sw1 == Word.SLIDER_BEGIN or sw1 == Word.SLIDER_END:
+            new_word = '_'.join([sw1,sw2,sw3])
+        elif sw1 == Word.SLIDER_CENTER:
+            new_word = '_'.join([sw1,sw2,Word.CRAWL])
+        else:
+            new_word = sw1
+        
+        Mwords.append(new_word)
+    
+    M.words = Mwords
+    return Mwords
 
 
 

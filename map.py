@@ -166,7 +166,7 @@ class Map:
         
         # convert ticks (ms) to time bin indices
         tbi = np.floor((tick_arr/1000) * bin_in_sec).astype(np.int)
-        # shift four bins into the future due to spectrogram window being 4 hop lengths (2048)
+        # shift four bins into the future due to spectrogram window being 4 hop lengths (2048/512)
         tbi = tbi + 4
         # hit object classes
         labels[tbi] = word_arr[:,0]
@@ -175,6 +175,40 @@ class Map:
             np.save(np_path,labels)
         else:
             return labels
+    
+    
+    def encodeHitLabels2Map(self,wav_len,labels):
+        '''
+        Translates label array with length N into time ticks and words
+        where N is the number of time bins in the spectrogram
+        num_bins = (wav_len / [bin_len])+1
+        Inputs: wav_len - length of cropped audio in seconds
+                    labels - Nx1 array with values 1 to 6 indicating hitobjects 
+                               (i.e. from model prediction)
+        Outputs: words saved into map object
+        '''
+        N = len(labels)
+        bin_len = wav_len / (N-1)  # length of each time bin in seconds
+        bin_in_sec = 1 / bin_len  # number of bins in every second
+        
+        # convert ticks (ms) to time bin indices
+        tbi = np.floor((self.ticks/1000) * bin_in_sec).astype(np.int)
+        # shift four bins into the future due to spectrogram window being 4 hop lengths (2048/512)
+        tbi = tbi + 4
+        tbi = np.delete(tbi, np.where(tbi >= N))
+        # take average of bin values around each tick?
+        tick_obj = labels[tbi]
+        
+        # add direction and velocity values (defaults are 'E' for direction and 'c' for velocity)
+        word_arr = np.zeros((len(tick_obj), 3)).astype(np.uint8)
+        word_arr[:,0] = tick_obj.flatten()
+        word_arr[:,2] = 2
+        
+        # store words into map object
+        new_words = encodeArray2Map(self, word_arr)
+        
+        return new_words
+        
         
     
     def saveWords2JSON(self, json_path, file_option):
@@ -339,35 +373,53 @@ def profile_map():
     # for testing only
     #filename = "Our Stolen Theory - United (L.A.O.S Remix) (Asphyxia) [Infinity]"
     #filename = "Will Stetson - Despacito ft. R3 Music Box (Sotarks) [Monstrata's Slow Expert]"
-    #filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
+    filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
     #filename = "Caravan Palace - Miracle (Mulciber) [Extra]"
     #filename = "xi - FREEDOM DiVE (Pikastar) [Universe]"
     #filename = "DM Ashura - Classical Insanity (Louis Cyphre) [Vivacissimo]"
-    filename = "652886 Wisp X - Wander [Insane]"
+    #filename = "652886 Wisp X - Wander [Insane]"
     
     osu_file = "songs/osu_mp3/" + filename + ".osu"
     mp3_file = "songs/osu_mp3/" + filename + ".mp3"
     wav_file = "songs/osu_mp3/" + filename + ".wav"
+    arr_file = "songs/osu_mp3/" + filename + ".npy"
     
     # [Time(ms), bpm, meter(beats per measure)]
     # bpm = 1 / [tick_length] * 1000 * 60
     # assume timing is found beforehand
     #time_bpm = [[15688, 175, 4]]
     #time_bpm = [[540,91,4],[2245,89,4]]
-    #time_bpm = [[1342,180,4]]
+    time_bpm = [[1342,180,4]]
     #time_bpm = [[-30,200,4]]
     #time_bpm = [[2133,222.22,4]]
     #time_bpm = [[38,175,4]]
     
-    #import librosa
-    #sec_len = librosa.get_duration(filename=mp3_file)
-    #mp3_len = sec_len * 1000
-    #m_empty = Map.fromTiming(time_bpm,mp3_file,mp3_len=mp3_len)
     
-    # read actual .osu map
-    m = Map.fromPath(osu_file)
+    ### Experiment 1: Create map from audio file and predicted labels
+    import librosa
+    sec_len = librosa.get_duration(filename=mp3_file)
+    mp3_len = sec_len * 1000
+    m_empty = Map.fromTiming(time_bpm,mp3_file,mp3_len=mp3_len)
+    
+    # get words from label array (from model prediction)
+    label_arr = np.load(arr_file)
+    num_bins = len(label_arr)
+    # cropped audio length (from spectrogram calculations) in seconds
+    crop_sec = int(np.floor(sec_len*16000/512)*512)/16000
+    # set all objects greater than threshold to 3 (hitcircle) for now
+    label_arr[label_arr > 0.1] = 3
+    label_arr[label_arr <= 0.1] = 0
+    label_arr = label_arr.astype(np.uint8)
+    
+    obj_words = m_empty.encodeHitLabels2Map(crop_sec, label_arr)
+    m_empty.decodeWords(obj_words)
+    m_empty.saveMap2Osu()
+    
+    
+    ### Experiment 2: Read actual .osu map
+    #m = Map.fromPath(osu_file)
     # encode then decode the hitobjects and try out the map
-    obj_words = m.encodeTicks()
+    #obj_words = m.encodeTicks()
     #m.saveWords2JSON("songs/test.json", True)
     
     # visualize words
@@ -381,18 +433,14 @@ def profile_map():
     #pdb.set_trace()
     
     # visualize labels
-    import librosa
-    sec_len = librosa.get_duration(filename=wav_file)
-    sample_len = 16000 * sec_len
-    crop_len = int(np.floor(sample_len / 512) * 512)
-    crop_sec = crop_len / 16000
-    num_bins = round(crop_len / 512) + 1
-    labels = m.saveMap2HitLabels(crop_sec,num_bins,None,False)
+    #import librosa
+    #sec_len = librosa.get_duration(filename=wav_file)
+    #sample_len = 16000 * sec_len
+    #crop_len = int(np.floor(sample_len / 512) * 512)
+    #crop_sec = crop_len / 16000
+    #num_bins = round(crop_len / 512) + 1
+    #labels = m.saveMap2HitLabels(crop_sec,num_bins,None,False)
     
-    pdb.set_trace()
-    
-    #m_empty.decodeWords(obj_words)
-    #m_empty.saveMap2Osu()
 
 
 if __name__ == "__main__":
