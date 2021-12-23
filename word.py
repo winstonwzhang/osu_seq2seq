@@ -25,8 +25,73 @@ DEFAULT_EDGESOUND = "0"
 DEFAULT_EDGESET = "0:0"
 DEFAULT_HITSAMPLE = "0:0:0:0"
 
-
 r22 = np.sqrt(2)/2
+
+
+# word constants
+# object subwords
+HITCIRCLE = 'h'
+HITCIRCLE_DOUBLE = 'hd'
+SLIDER_BEGIN = 'slb'
+SLIDER_CENTER = 'slc'
+SLIDER_END = 'sle'
+SPINNER = 'spin'
+BREAK = 'b'
+EMPTY = 'e'
+# object string to int dictionary
+obj_str2int = dict([(y,x) for x,y in enumerate(['e','b','spin','h','slb','slc','sle'])])
+obj_int2str = {v: k for k,v in obj_str2int.items()}
+
+# cardinal direction: radian thresholds
+t_NNE = np.pi/8
+t_NEE = np.pi*3/8
+t_ESE = np.pi*5/8
+t_SES = np.pi*7/8
+# cardinal direction: subwords
+E = 'E'
+NE = 'NE'
+N = 'N'
+NW = 'NW'
+W = 'W'
+SW = 'SW'
+S = 'S'
+SE = 'SE'
+# cardinal direction: rotation [cos(theta) sin(theta)] vals
+rot = {'E': [0.0, -1.0],
+       'NE': [r22, -r22],
+       'N': [1.0, 0.0],
+       'NW': [r22, r22],
+       'W': [0.0, 1.0],
+       'SW': [-r22, r22],
+       'S': [-1.0, 0.0],
+       'SE': [-r22, -r22]
+       }
+# direction string to int dictionary
+dir_str2int = dict([(y,x) for x,y in enumerate(['E','NE','N','NW','W','SW','S','SE'])])
+dir_int2str = {v: k for k,v in dir_str2int.items()}
+
+# velocity: osu!pixel per tick thresholds (non-slider)
+t_CRAWL = 0
+t_SLOW = 40
+t_MED = 70
+t_FAST = 100
+# velocity: osu!pixel per tick thresholds (slider speed)
+t_sCRAWL = 0  # sliderMultiplier 0.0 hecto-osupix assuming meter of 4
+t_sSLOW = 30  # sliderMultiplier 1.2 hecto-osupix assuming meter of 4
+t_sMED = 60   # sliderMultiplier 2.4 hecto-osupix assuming meter of 4
+t_sFAST = 90  # sliderMultiplier 3.6 hecto-osupix assuming meter of 4
+t_s = {'c': t_sCRAWL, 's': t_sSLOW, 'm': t_sMED, 'f': t_sFAST}
+# velocity: subwords
+CRAWL = 'c'
+SLOW = 's'
+MED = 'm'
+FAST = 'f'
+# velocity string to int dictionary
+vel_str2int = dict([(y,x) for x,y in enumerate(['c','s','m','f'])])
+vel_int2str = {v: k for k,v in vel_str2int.items()}
+
+
+
 
 class Word:
     '''
@@ -81,88 +146,29 @@ class Word:
     3 [spin,b,e]                                          = 3
     96 + 8 + 3 = 107 unique words
     '''
-    # object subwords
-    HITCIRCLE = 'h'
-    HITCIRCLE_DOUBLE = 'hd'
-    SLIDER_BEGIN = 'slb'
-    SLIDER_CENTER = 'slc'
-    SLIDER_END = 'sle'
-    SPINNER = 'spin'
-    BREAK = 'b'
-    EMPTY = 'e'
-    # object string to int dictionary
-    obj_str2int = dict([(y,x) for x,y in enumerate(['e','b','spin','h','slb','slc','sle'])])
-    obj_int2str = {v: k for k,v in obj_str2int.items()}
-   
-    # cardinal direction: radian thresholds
-    t_NNE = np.pi/8
-    t_NEE = np.pi*3/8
-    t_ESE = np.pi*5/8
-    t_SES = np.pi*7/8
-    # cardinal direction: subwords
-    E = 'E'
-    NE = 'NE'
-    N = 'N'
-    NW = 'NW'
-    W = 'W'
-    SW = 'SW'
-    S = 'S'
-    SE = 'SE'
-    # cardinal direction: rotation [cos(theta) sin(theta)] vals
-    rot = {'E': [0.0, -1.0],
-           'NE': [r22, -r22],
-           'N': [1.0, 0.0],
-           'NW': [r22, r22],
-           'W': [0.0, 1.0],
-           'SW': [-r22, r22],
-           'S': [-1.0, 0.0],
-           'SE': [-r22, -r22]
-           }
-    # direction string to int dictionary
-    dir_str2int = dict([(y,x) for x,y in enumerate(['E','NE','N','NW','W','SW','S','SE'])])
-    dir_int2str = {v: k for k,v in dir_str2int.items()}
     
-    # velocity: osu!pixel per tick thresholds (non-slider)
-    t_CRAWL = 0
-    t_SLOW = 40
-    t_MED = 90
-    t_FAST = 180
-    # velocity: osu!pixel per tick thresholds (slider speed)
-    t_sCRAWL = 0  # sliderMultiplier 0.0 hecto-osupix assuming meter of 4
-    t_sSLOW = 30  # sliderMultiplier 1.2 hecto-osupix assuming meter of 4
-    t_sMED = 60   # sliderMultiplier 2.4 hecto-osupix assuming meter of 4
-    t_sFAST = 90  # sliderMultiplier 3.6 hecto-osupix assuming meter of 4
-    t_s = {'c': t_sCRAWL, 's': t_sSLOW, 'm': t_sMED, 'f': t_sFAST}
-    # velocity: subwords
-    CRAWL = 'c'
-    SLOW = 's'
-    MED = 'm'
-    FAST = 'f'
-    # velocity string to int dictionary
-    vel_str2int = dict([(y,x) for x,y in enumerate(['c','s','m','f'])])
-    vel_int2str = {v: k for k,v in vel_str2int.items()}
 
 
 def getDistanceSubword(tickmag, slider=None):
     '''returns distance classification based on Word class'''
     if slider:  # different thresholds for slider speed
-        if tickmag >= Word.t_sFAST:
-            return Word.FAST
-        elif tickmag >= Word.t_sMED:
-            return Word.MED
-        elif tickmag >= Word.t_sSLOW:
-            return Word.SLOW
+        if tickmag >= t_sFAST:
+            return FAST
+        elif tickmag >= t_sMED:
+            return MED
+        elif tickmag >= t_sSLOW:
+            return SLOW
         else:
-            return Word.CRAWL
+            return CRAWL
     else:
-        if tickmag >= Word.t_FAST:
-            return Word.FAST
-        elif tickmag >= Word.t_MED:
-            return Word.MED
-        elif tickmag >= Word.t_SLOW:
-            return Word.SLOW
+        if tickmag >= t_FAST:
+            return FAST
+        elif tickmag >= t_MED:
+            return MED
+        elif tickmag >= t_SLOW:
+            return SLOW
         else:
-            return Word.CRAWL
+            return CRAWL
     
     
 def getDirectionSubword(v1, v2):
@@ -172,39 +178,39 @@ def getDirectionSubword(v1, v2):
     '''
     # zero vector check
     if not np.any(v1) or not np.any(v2):
-        return Word.N
+        return N
     # difference between vectors
     rad_diff = np.arccos(np.clip(np.dot(v1,v2), -1.0, 1.0))
     hand_dir = np.cross(v1, v2)
     if math.isclose(hand_dir, 0.0):
-        if rad_diff < Word.t_NNE:
-            return Word.N
+        if rad_diff < t_NNE:
+            return N
         else:
-            return Word.S
+            return S
     # right hand side
     if hand_dir < 0:
-        if rad_diff <= Word.t_NNE:
-            return Word.N
-        elif rad_diff <= Word.t_NEE:
-            return Word.NE
-        elif rad_diff <= Word.t_ESE:
-            return Word.E
-        elif rad_diff <= Word.t_SES:
-            return Word.SE
+        if rad_diff <= t_NNE:
+            return N
+        elif rad_diff <= t_NEE:
+            return NE
+        elif rad_diff <= t_ESE:
+            return E
+        elif rad_diff <= t_SES:
+            return SE
         else:
-            return Word.S
+            return S
     # left hand side
     else:
-        if rad_diff <= Word.t_NNE:
-            return Word.N
-        elif rad_diff <= Word.t_NEE:
-            return Word.NW
-        elif rad_diff <= Word.t_ESE:
-            return Word.W
-        elif rad_diff <= Word.t_SES:
-            return Word.SW
+        if rad_diff <= t_NNE:
+            return N
+        elif rad_diff <= t_NEE:
+            return NW
+        elif rad_diff <= t_ESE:
+            return W
+        elif rad_diff <= t_SES:
+            return SW
         else:
-            return Word.S
+            return S
 
 
 def encodeTimePeriod(M, startTime, endTime, word):
@@ -248,9 +254,9 @@ def encodeSlider(M, obj, ti, T, direc):
         rep = int(rep)
         # get slider part using ratio
         if abs(round(cv_t)-cv_t) < 0.05:
-            sw1 = Word.SLIDER_END
+            sw1 = SLIDER_END
         else:  # middle of slider
-            sw1 = Word.SLIDER_CENTER
+            sw1 = SLIDER_CENTER
         # use curve object to find tick position xy
         if rep % 2:  # odd, slider in reverse
             ti_xy = cv(1.0-cv_t)
@@ -264,7 +270,7 @@ def encodeSlider(M, obj, ti, T, direc):
         if abs(round(cv_t)-cv_t) < 0.05:
             sw3 = getDistanceSubword(mag / 1, True)  # tickdiff in slider always 1
         else:  # middle of slider
-            sw3 = Word.CRAWL  # subword won't be used during decoding
+            sw3 = CRAWL  # subword won't be used during decoding
         
         # update for this tick
         M.words[s_ti] = sw1+'_'+sw2+'_'+sw3
@@ -311,23 +317,23 @@ def encodeJSON2Words(M):
         if obj_class == 0:
             # check for half-tick hitcircle
             if titimediff > tilen*0.4:
-                sw1 = Word.HITCIRCLE_DOUBLE
+                sw1 = HITCIRCLE_DOUBLE
                 # skip, only deal with objects on ticks
                 continue
             else:
-                sw1 = Word.HITCIRCLE
+                sw1 = HITCIRCLE
             M.words[ti] = sw1+'_'+sw2+'_'+sw3
         # slider
         elif obj_class == 1:
             # update with slider start tick
-            sw1 = Word.SLIDER_BEGIN
+            sw1 = SLIDER_BEGIN
             M.words[ti] = sw1+'_'+sw2+'_'+sw3
             # update rest of slider ticks and return slider end info
             obj_xy,direc,ti = encodeSlider(M, obj, ti, T, direc)
         # spinner
         elif obj_class == 2:
             end_time = obj['endTime']
-            end_ti = encodeTimePeriod(M, obj_time,end_time,Word.SPINNER)
+            end_ti = encodeTimePeriod(M, obj_time,end_time,SPINNER)
             # return spinner end tick info
             obj_xy,direc,ti = [DEFAULT_X,DEFAULT_Y], DEFAULT_DIREC, end_ti
         
@@ -339,11 +345,11 @@ def encodeJSON2Words(M):
     # deal with breaks
     if M.E:
         for evt in M.E:
-            encodeTimePeriod(M, evt['startTime'], evt['endTime'], Word.BREAK)
+            encodeTimePeriod(M, evt['startTime'], evt['endTime'], BREAK)
     # deal with empty ticks
     for ti, val in enumerate(M.words):
         if val == None:
-            M.words[ti] = Word.EMPTY
+            M.words[ti] = EMPTY
     
     return M.words
 
@@ -351,7 +357,7 @@ def encodeJSON2Words(M):
 # direction
 def getNewDir(sw, prev_dir):
     '''Rotates previous direction by subword direction'''
-    rot_vec = Word.rot[sw]
+    rot_vec = rot[sw]
     cn, sn = rot_vec
     x,y = prev_dir
     new_dir = [0,0]
@@ -369,14 +375,14 @@ def decodePos(prev_xy, prev_dir, tidiff, sw_dir, sw_vel, pix_ti=None):
     if pix_ti:
         mag = pix_ti * tidiff
     else:
-        if sw_vel == Word.CRAWL:
-            dist_range = [Word.t_CRAWL, Word.t_SLOW-1]
-        elif sw_vel == Word.SLOW:
-            dist_range = [Word.t_SLOW, Word.t_MED-1]
-        elif sw_vel == Word.MED:
-            dist_range = [Word.t_MED, Word.t_FAST-1]
+        if sw_vel == CRAWL:
+            dist_range = [t_CRAWL, t_SLOW-1]
+        elif sw_vel == SLOW:
+            dist_range = [t_SLOW, t_MED-1]
+        elif sw_vel == MED:
+            dist_range = [t_MED, t_FAST-1]
         else:
-            dist_range = [Word.t_FAST, Word.t_FAST+100-1]
+            dist_range = [t_FAST, t_FAST+100-1]
         
         # add randomness to map generation
         if tidiff > 1:
@@ -398,14 +404,16 @@ def decodePos(prev_xy, prev_dir, tidiff, sw_dir, sw_vel, pix_ti=None):
     # add randomness to direction generation
     if tidiff > 1:
         x,y = new_dir
-        randrad = random.uniform(0,np.pi/4)
+        randrad = random.uniform(0,np.pi/16)
         cn,sn = np.cos(randrad), np.sin(randrad)
         new_dir[0] = x * cn - y * sn
         new_dir[1] = x * sn + y * cn
     # check if new xy is out of bounds, if so search for other directions
     new_xy = prev_xy + np.array(new_dir) * mag
     dir_idx = 0
-    rot_keys = list(Word.rot.keys())
+    # randomize search directions when running out of bounds
+    rot_keys = list(rot.keys())
+    random.shuffle(rot_keys)
     while not (X_LIM[0] <= new_xy[0] <= X_LIM[1]) or not (Y_LIM[0] <= new_xy[1] <= Y_LIM[1]):
         key = rot_keys[dir_idx]
         dir_idx += 1
@@ -472,14 +480,14 @@ def decodeSlider(M, ti, words, prev_xy, prev_dir, prev_ti):
     T_idx,T = M.getTDict(start_time)
     meter = T['meter']
     pixperti = (M.c_sx*T['speedMultiplier']*100) / meter
-    if pixperti >= Word.t_sFAST:
-        exp_sl_speed = Word.FAST
-    elif pixperti >= Word.t_sMED:
-        exp_sl_speed = Word.MED
-    elif pixperti >= Word.t_sSLOW:
-        exp_sl_speed = Word.SLOW
+    if pixperti >= t_sFAST:
+        exp_sl_speed = FAST
+    elif pixperti >= t_sMED:
+        exp_sl_speed = MED
+    elif pixperti >= t_sSLOW:
+        exp_sl_speed = SLOW
     else:
-        exp_sl_speed = Word.CRAWL
+        exp_sl_speed = CRAWL
     
     cv_pts = []
     repeats = 0
@@ -489,7 +497,7 @@ def decodeSlider(M, ti, words, prev_xy, prev_dir, prev_ti):
     # check next slider tick type
     next_w = words[ti + 1]
     # this slider ends at half tick and doesn't repeat
-    if '_' not in next_w or (Word.SLIDER_CENTER not in next_w and Word.SLIDER_END not in next_w):
+    if '_' not in next_w or (SLIDER_CENTER not in next_w and SLIDER_END not in next_w):
         next_pt, next_dir = decodePos(prev_xy,prev_dir,1,'N','c',pix_ti=pixperti/2)
         cv_pts.append({'x': next_pt[0], 'y': next_pt[1]})
         total_len = pixperti / 2
@@ -499,17 +507,17 @@ def decodeSlider(M, ti, words, prev_xy, prev_dir, prev_ti):
         ti_is_end = []        # keep track of which ticks are slider ends
         ti_dirs = []          # keep track of tick directions 
         num_N = 0             # for distinguishing half-tick len repeat sliders
-        sl_speed = Word.SLOW  # keep track of slider velocity at slider end
+        sl_speed = SLOW  # keep track of slider velocity at slider end
         cur_ti = ti+1         # tick index iterator
         # as long as slider center or end, we know slider hasn't ended
-        while Word.SLIDER_CENTER in next_w or Word.SLIDER_END in next_w:
+        while SLIDER_CENTER in next_w or SLIDER_END in next_w:
             sw1,sw2,sw3 = next_w.split('_')
-            if sw1 == Word.SLIDER_END:
+            if sw1 == SLIDER_END:
                 ti_is_end.append(1)
             else:
                 ti_is_end.append(0)
             ti_dirs.append(sw2)
-            if sw2 == Word.N:
+            if sw2 == N:
                 num_N += 1
             sl_speed = sw3
             cur_ti += 1
@@ -518,15 +526,15 @@ def decodeSlider(M, ti, words, prev_xy, prev_dir, prev_ti):
         # from slider speed judge whether to create new inherited timing section
         # don't do for small repeating sliders
         num_sl_ti = len(ti_is_end)
-        if exp_sl_speed != sl_speed and sl_speed != Word.CRAWL:
-            if sl_speed == Word.FAST:
-                pixperti = Word.t_sFAST + 5
-            elif sl_speed == Word.MED:
-                pixperti = Word.t_sMED + 5
-            elif sl_speed == Word.SLOW:
-                pixperti = Word.t_sSLOW + 5
+        if exp_sl_speed != sl_speed and sl_speed != CRAWL:
+            if sl_speed == FAST:
+                pixperti = t_sFAST + 5
+            elif sl_speed == MED:
+                pixperti = t_sMED + 5
+            elif sl_speed == SLOW:
+                pixperti = t_sSLOW + 5
             else:
-                pixperti = Word.t_sCRAWL + 5
+                pixperti = t_sCRAWL + 5
             
             new_mult = pixperti*meter / (M.c_sx*100)
             new_blen = 100.0 / -new_mult
@@ -627,9 +635,9 @@ def decodeWords2JSON(M, words):
         start_time = M.ticks[ti]
         if '_' in w:
             sw1, sw2, sw3 = w.split('_')
-            if sw1 == Word.HITCIRCLE:
+            if sw1 == HITCIRCLE:
                 obj_xy, direc = decodeHitCircle(M,ti,words,prev_xy,prev_direc,prev_ti)
-            elif sw1 == Word.SLIDER_BEGIN:
+            elif sw1 == SLIDER_BEGIN:
                 obj_xy, direc, ti = decodeSlider(M,ti,words,prev_xy,prev_direc,prev_ti)
             else:
                 continue
@@ -639,7 +647,7 @@ def decodeWords2JSON(M, words):
             prev_direc = direc
             prev_ti = ti
         
-        elif w == Word.SPINNER:
+        elif w == SPINNER:
             obj_xy, direc, ti = decodeSpinner(M,ti,words,prev_xy,prev_direc,prev_ti)
             
             # update for calculating next obj tick info
@@ -647,7 +655,7 @@ def decodeWords2JSON(M, words):
             prev_direc = direc
             prev_ti = ti
         
-        elif w == Word.BREAK:
+        elif w == BREAK:
             ti = decodeTimePeriod(ti,words,w)
             obj = {'startTime': start_time,
                    'endTime': M.ticks[ti]
@@ -682,13 +690,13 @@ def decodeMap2Array(M):
             vel_list.append(sw3)
         else:
             obj_list.append(w)
-            dir_list.append(Word.E)
-            vel_list.append(Word.CRAWL)
+            dir_list.append(E)
+            vel_list.append(CRAWL)
     
     word_arr = np.zeros((len(Mticks),3), dtype=np.uint8)
-    word_arr[:,0] = np.array([Word.obj_str2int[x] for x in obj_list], dtype=np.uint8)
-    word_arr[:,1] = np.array([Word.dir_str2int[x] for x in dir_list], dtype=np.uint8)
-    word_arr[:,2] = np.array([Word.vel_str2int[x] for x in vel_list], dtype=np.uint8)
+    word_arr[:,0] = np.array([obj_str2int[x] for x in obj_list], dtype=np.uint8)
+    word_arr[:,1] = np.array([dir_str2int[x] for x in dir_list], dtype=np.uint8)
+    word_arr[:,2] = np.array([vel_str2int[x] for x in vel_list], dtype=np.uint8)
     
     return tick_arr, word_arr
 
@@ -700,16 +708,16 @@ def encodeArray2Map(M, word_arr):
     This function stores the words from the array into the map object
     Returns generated word strings
     '''
-    obj_list = [Word.obj_int2str[x] for x in word_arr[:,0]]
-    dir_list = [Word.dir_int2str[x] for x in word_arr[:,1]]
-    vel_list = [Word.vel_int2str[x] for x in word_arr[:,2]]
+    obj_list = [obj_int2str[x] for x in word_arr[:,0]]
+    dir_list = [dir_int2str[x] for x in word_arr[:,1]]
+    vel_list = [vel_int2str[x] for x in word_arr[:,2]]
     
     Mwords = []
     for sw1, sw2, sw3 in zip(obj_list, dir_list, vel_list):
-        if sw1 == Word.HITCIRCLE or sw1 == Word.SLIDER_BEGIN or sw1 == Word.SLIDER_END:
+        if sw1 == HITCIRCLE or sw1 == SLIDER_BEGIN or sw1 == SLIDER_END:
             new_word = '_'.join([sw1,sw2,sw3])
-        elif sw1 == Word.SLIDER_CENTER:
-            new_word = '_'.join([sw1,sw2,Word.CRAWL])
+        elif sw1 == SLIDER_CENTER:
+            new_word = '_'.join([sw1,sw2,CRAWL])
         else:
             new_word = sw1
         

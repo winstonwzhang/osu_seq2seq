@@ -9,6 +9,7 @@ import pandas as pd
 
 from map_io import load_map, load_template, save_map, save_words
 from word import *
+from label import *
 from utils import parseOsuMp3Filename
 
 
@@ -154,22 +155,11 @@ class Map:
         Outputs: labels - array with length num_bins indicating 
                                  class of hit object at every time bin
         '''
-        N = num_bins
-        bin_len = wav_len / (num_bins-1)  # length of each time bin in seconds
-        bin_in_sec = 1 / bin_len  # number of bins in every second
-        
-        labels = np.zeros((N,), dtype=np.uint8)
-        
         # this func returns 2 arrays
         # one float arr for tick times and one int arr for words
         tick_arr, word_arr = decodeMap2Array(self)
         
-        # convert ticks (ms) to time bin indices
-        tbi = np.floor((tick_arr/1000) * bin_in_sec).astype(np.int)
-        # shift four bins into the future due to spectrogram window being 4 hop lengths (2048/512)
-        tbi = tbi + 4
-        # hit object classes
-        labels[tbi] = word_arr[:,0]
+        labels = wordArray2Label(tick_arr, word_arr, wav_len, num_bins)
         
         if file_option:
             np.save(np_path,labels)
@@ -187,22 +177,7 @@ class Map:
                                (i.e. from model prediction)
         Outputs: words saved into map object
         '''
-        N = len(labels)
-        bin_len = wav_len / (N-1)  # length of each time bin in seconds
-        bin_in_sec = 1 / bin_len  # number of bins in every second
-        
-        # convert ticks (ms) to time bin indices
-        tbi = np.floor((self.ticks/1000) * bin_in_sec).astype(np.int)
-        # shift four bins into the future due to spectrogram window being 4 hop lengths (2048/512)
-        tbi = tbi + 4
-        tbi = np.delete(tbi, np.where(tbi >= N))
-        # take average of bin values around each tick?
-        tick_obj = labels[tbi]
-        
-        # add direction and velocity values (defaults are 'E' for direction and 'c' for velocity)
-        word_arr = np.zeros((len(tick_obj), 3)).astype(np.uint8)
-        word_arr[:,0] = tick_obj.flatten()
-        word_arr[:,2] = 2
+        word_arr = label2WordArray(labels, self.ticks, wav_len)
         
         # store words into map object
         new_words = encodeArray2Map(self, word_arr)
@@ -373,8 +348,8 @@ def profile_map():
     # for testing only
     #filename = "Our Stolen Theory - United (L.A.O.S Remix) (Asphyxia) [Infinity]"
     #filename = "Will Stetson - Despacito ft. R3 Music Box (Sotarks) [Monstrata's Slow Expert]"
-    filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
-    #filename = "Caravan Palace - Miracle (Mulciber) [Extra]"
+    #filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
+    filename = "Caravan Palace - Miracle (Mulciber) [Extra]"
     #filename = "xi - FREEDOM DiVE (Pikastar) [Universe]"
     #filename = "DM Ashura - Classical Insanity (Louis Cyphre) [Vivacissimo]"
     #filename = "652886 Wisp X - Wander [Insane]"
@@ -389,10 +364,10 @@ def profile_map():
     # assume timing is found beforehand
     #time_bpm = [[15688, 175, 4]]
     #time_bpm = [[540,91,4],[2245,89,4]]
-    time_bpm = [[1342,180,4]]
-    #time_bpm = [[-30,200,4]]
+    #time_bpm = [[1342,180,4]]
+    time_bpm = [[-30,200,4]]
     #time_bpm = [[2133,222.22,4]]
-    #time_bpm = [[38,175,4]]
+    #time_bpm = [[38,175,4],[64152,175,3],[75466,175,4]]
     
     
     ### Experiment 1: Create map from audio file and predicted labels
@@ -401,15 +376,7 @@ def profile_map():
     mp3_len = sec_len * 1000
     m_empty = Map.fromTiming(time_bpm,mp3_file,mp3_len=mp3_len)
     
-    # get words from label array (from model prediction)
-    label_arr = np.load(arr_file)
-    num_bins = len(label_arr)
-    # cropped audio length (from spectrogram calculations) in seconds
-    crop_sec = int(np.floor(sec_len*16000/512)*512)/16000
-    # set all objects greater than threshold to 3 (hitcircle) for now
-    label_arr[label_arr > 0.1] = 3
-    label_arr[label_arr <= 0.1] = 0
-    label_arr = label_arr.astype(np.uint8)
+    label_arr, crop_sec = loadModelPred(arr_file, sec_len)
     
     obj_words = m_empty.encodeHitLabels2Map(crop_sec, label_arr)
     m_empty.decodeWords(obj_words)
