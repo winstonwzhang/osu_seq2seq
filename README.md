@@ -17,21 +17,6 @@ beatmap domain could be viewed as similar to music midi notes.
 Thus this problem could be compared to the automatic music
 transcription problem in literature.
 
-However, besides the goal of classifying note class and note
-duration, beatmap generation also requires prediction of 2D
-positioning of notes. Adding further complexity,
-
-- The same exact audio can be mapped to wildly different types
-  of notes and patterns depending on intended difficulty for the
-  player and the map creator's creativity, which makes beatmap
-  prediction more similar to music/art generation than automatic
-  transcription
-
-- Ideal beatmaps contain certain note placement motifs and patterns
-  such as "streams" and regularly spaced "jumps" that improve map
-  enjoyment for players, and an automatic beatmap generator should
-  aim to be able to generate these patterns
-
 _________________
 
 Previously, github user kotritrona has done previous work on beatmap
@@ -43,19 +28,32 @@ able to capture long-term patterns related to music sections
 (intro, pre-chorus, chorus, etc) that can be seen in human-created
 beatmaps.
 
-Leveraging recent advances using the Transformer model in NLP,
-I attempt to frame automatic beatmap generation as an NLP problem
-and predict beatmap notes using an attention-based sequence-to-sequence
-model, where the notes are embedded as "words".
+Drawing inspiration from onsets and frames model: https://arxiv.org/pdf/1710.11153.pdf
 
-The word embeddings contain note type and note
-position information, while music audio is embedded as Mel-spectrograms.
-Notes embeddings have further incorporated contextual information by
-learning vector representations of the words using Word2Vec.
+Input data:
+1. Training data
+    Pre-timed music .wav file is downsampled to a constant mono channel 16 kHz sampling rate
+    Songs are divided into 20 second sections with extra 0.032 ms before beginning of 20 sec section
+	  Mel spectrograms extracted with 229 Mel bins, resulting in 626 time bins, 0.032 sec each
+	
+2. Training labels
+    Ticks and objects from .osu maps translated into classes
+    binary: 1 or 0 for presence of hitobject, multi: class for each of hitcircle, slider start, slider end
+	  Each tick is mapped onto corresponding time bin within the 20.032 seconds/626 time bins
 
-Similar work on translating between audio and text spaces has been
-done before in the automatic speech recognition (ASR) domain, and 
-tranformers were found to work well.
+Preprocessing:
+Each song file is pre-timed, meaning that each word is matched with a specific tick index in the song.
+A "tick" is calculated from beat length divided by meter.
+Beat length is calculated from (60*1000) / song BPM.
+Meter is usually 4 ticks per beat (4/4 time in music theory).
+Osu songs will range from 120 BPM to a high end of 400 BPM,
+which corresponds to tick lengths in the range of 125 ms to 37.5 ms.
+Time bin length of 32 ms for mel spectrograms is in range of highest BPM songs
+
+In speech recognition and music classification literature, spectrograms have shown to be able to capture similar 
+information by transforming audio data into frequency and time information.
+CNNs also serve as excellent feature extractors on spectrograms. We can use a CNN network to summarize the 
+information contained in a spectrogram that is generated from the music samples around each tick.
 
 
 
