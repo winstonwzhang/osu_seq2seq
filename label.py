@@ -4,10 +4,33 @@ import sys
 import pdb
 import numpy as np
 from math import log, e
+from scipy.signal import find_peaks
 
 import word
+from utils import *
 
+# hit object subword integer representations from word.py
+h_int = word.obj_str2int[word.HITCIRCLE]
+e_int = word.obj_str2int[word.EMPTY]
+sb_int = word.obj_str2int[word.SLIDER_BEGIN]
+sc_int = word.obj_str2int[word.SLIDER_CENTER]
+se_int = word.obj_str2int[word.SLIDER_END]
+b_int = word.obj_str2int[word.BREAK]
 
+SW_int = word.dir_str2int[word.SW]
+SE_int = word.dir_str2int[word.SE]
+NW_int = word.dir_str2int[word.NW]
+NE_int = word.dir_str2int[word.NE]
+W_int = word.dir_str2int[word.W]
+E_int = word.dir_str2int[word.E]
+N_int = word.dir_str2int[word.N]
+
+crawl_int = word.vel_str2int[word.CRAWL]
+slow_int = word.vel_str2int[word.SLOW]
+med_int = word.vel_str2int[word.MED]
+    
+    
+    
 def loadModelPred(arr_file, sec_len):
     '''
     arr_file: path to numpy array predictions saved by model
@@ -21,89 +44,84 @@ def loadModelPred(arr_file, sec_len):
     crop_sec = int(np.floor(sec_len*16000/512)*512)/16000
     
     return label_arr, crop_sec
+  
+  
+def setSlider(tick_obj, word_arr, ss, se):
+    tick_obj[ss] = sb_int
+    tick_obj[se] = se_int
+    slider_dir = np.random.choice(np.array([NW_int, N_int, NE_int]))
+    if se - ss > 1:
+        tick_obj[ss+1:se] = sc_int
+        word_arr[ss:se+1,1] = slider_dir
+        word_arr[ss+1:se,2] = crawl_int
+        word_arr[se,2] = med_int
+    else:
+        word_arr[se,1] = slider_dir
+        word_arr[se,2] = med_int
+ 
 
-
-def pattwhere_sequ(pattern, a):
-    # find index of all occurrences of subarray pattern in array a
-    pattern, a = map(np.asanyarray, (pattern, a))
-    k = len(pattern)
-    if k>len(a):
-        return np.empty([0], int)
-    hits = np.flatnonzero(a == pattern[-1])
-    for p in pattern[-2::-1]:
-        hits -= 1
-        hits = hits[a[hits] == p]
-    return hits
-
-
-def consecutive(data, stepsize=1):
-    # in: np.array([0,47,48,51,52,53])
-    # out: [array([0]), array([47,48]), array([51,52,53])]
-    return np.split(data, np.where(np.diff(data) != stepsize)[0]+1)
-
-
-def entropy(arr, base=None):
-  """ Computes entropy of array distribution. """
-  n_labels = len(arr)
-  if n_labels <= 1:
-      return 0
-  value,counts = np.unique(arr, return_counts=True)
-  probs = counts / n_labels
-  n_classes = np.count_nonzero(probs)
-
-  if n_classes <= 1:
-      return 0
-  ent = 0.
-  # Compute entropy
-  base = e if base is None else base
-  for i in probs:
-      ent -= i * log(i, base)
-
-  return ent
-    
-    
+def getTickBins(tarr, bin_in_sec, N):
+        # shift four bins into the future due to spectrogram window being 4 hop lengths (2048/512)
+        tbi = np.around((tarr/1000) * bin_in_sec, decimals=0).astype(np.int) + 4
+        tbi = np.delete(tbi, np.where(tbi >= N))
+        return tbi
+        
+        
 def label2WordArray(label_arr, tick_arr, wav_len):
     '''
     labels: array Nx1 with values [0,1] indicating probability of hit object
     tick_arr: ticks in ms
     wav_len: length of cropped audio from spectrogram in seconds
     '''
-    # hit object subword integer representations from word.py
-    h_int = word.obj_str2int[word.HITCIRCLE]
-    e_int = word.obj_str2int[word.EMPTY]
-    sb_int = word.obj_str2int[word.SLIDER_BEGIN]
-    sc_int = word.obj_str2int[word.SLIDER_CENTER]
-    se_int = word.obj_str2int[word.SLIDER_END]
-    b_int = word.obj_str2int[word.BREAK]
-    
-    SW_int = word.dir_str2int[word.SW]
-    SE_int = word.dir_str2int[word.SE]
-    NW_int = word.dir_str2int[word.NW]
-    NE_int = word.dir_str2int[word.NE]
-    W_int = word.dir_str2int[word.W]
-    E_int = word.dir_str2int[word.E]
-    N_int = word.dir_str2int[word.N]
-    
-    crawl_int = word.vel_str2int[word.CRAWL]
-    slow_int = word.vel_str2int[word.SLOW]
-    med_int = word.vel_str2int[word.MED]
-    
     # set all objects greater than threshold to 3 (hitcircle) for now
     labels = np.copy(label_arr)
-    labels[labels > 0.1] = h_int
-    labels[labels <= 0.1] = e_int
+    thresh = 0.1
+    labels[labels > thresh] = h_int
+    labels[labels <= thresh] = e_int
     labels = labels.astype(np.uint8)
+    objs = labels == h_int
     
     N = len(labels)
     bin_len = wav_len / (N-1)  # length of each time bin in seconds
     bin_in_sec = 1 / bin_len  # number of bins in every second
     
     # convert ticks (ms) to time bin indices
-    tbi = np.floor((tick_arr/1000) * bin_in_sec).astype(np.int)
-    # shift four bins into the future due to spectrogram window being 4 hop lengths (2048/512)
-    tbi = tbi + 4
-    tbi = np.delete(tbi, np.where(tbi >= N))
-    # take average of bin values around each tick?
+    #tick_diff = np.diff(tick_arr)
+    # only keep tick idx with difference > bin length
+    #kept_ticks = np.where(tick_diff > round(bin_len*1000))[0]
+    #kept_ticks = tick_arr[kept_ticks]
+    
+    # range of ms shifts to search over
+    check_range = np.arange(-50, 51)
+    check_sum = np.zeros(check_range.shape)
+    for ci, cdiff in enumerate(check_range):
+        tbi = getTickBins(tick_arr+cdiff, bin_in_sec, N)
+        check_sum[ci] = label_arr[tbi].sum()
+    #best_shift = check_range[np.argmax(check_sum)]
+    sumsmooth = smooth(check_sum, win_size=31, method="sg")
+    pkidx, pkdict = find_peaks(sumsmooth, prominence=np.ptp(sumsmooth)/10)
+    pkshifts = check_range[pkidx]
+    best_shift = check_range[pkidx[np.argmin(np.abs(pkshifts))]]
+    
+    tbi = getTickBins(tick_arr+best_shift, bin_in_sec, N)
+    # if too many hit objects, increase threshold
+    while objs[tbi].sum() > len(objs)/4:
+        if thresh >= 0.95:
+            break
+        thresh += 0.05
+        labels[label_arr > thresh] = h_int
+        labels[label_arr <= thresh] = e_int
+        objs = labels == h_int
+    # if too few hit objects, decrease threshold
+    while objs[tbi].sum() < len(objs)/10:
+        if thresh <= 0.05:
+            break
+        thresh -= 0.05
+        labels[label_arr > thresh] = h_int
+        labels[label_arr <= thresh] = e_int
+        objs = labels == h_int
+        
+    # get final hit objects for each tick
     tick_obj = labels[tbi]
     
     # initialize word array
@@ -129,10 +147,10 @@ def label2WordArray(label_arr, tick_arr, wav_len):
     diff_dist, _ = np.histogram(diff[diff<10], bins=np.arange(11))
     # most common tick difference is assumed to be the
     # base time difference between hitcircle jumps
-    # lower means streams, higher means 
-    base_diff = np.argmax(diff_dist)
+    # exclude 1 tick difference
+    jump_diff = np.argmax(diff_dist[2:])+2
     # mask of all ticks with constant base tick diff
-    base_mask = diff == base_diff
+    base_mask = diff == jump_diff
     # jump sections have constant base tick diff for longer than 4 objects
     jump_starts = []
     jump_mask = np.copy(h_mask)
@@ -154,8 +172,15 @@ def label2WordArray(label_arr, tick_arr, wav_len):
         s_hlen = jtup[1]
         # first hitcircle in jump section won't change velocity
         jump_idx = h_idx[s_hidx+1:s_hidx+s_hlen+1]
-        word_arr[jump_idx,1] = np.random.choice(np.array([SW_int, SE_int]))
+        word_arr[jump_idx,1] = np.random.choice(np.array([W_int, E_int, SW_int, SE_int]))
         word_arr[jump_idx,2] = med_int
+        # break up long jump sections with sliders
+        limit = np.random.randint(6,11)
+        if s_hlen > limit:
+            num_breaks = s_hlen // limit
+            ss_idx = np.arange(s_hidx+limit, s_hidx+s_hlen, limit)
+            for ss in ss_idx:
+                setSlider(tick_obj, word_arr, h_idx[ss], h_idx[ss+1])
     
     
     
@@ -183,8 +208,8 @@ def label2WordArray(label_arr, tick_arr, wav_len):
         sidx = stup[0]
         slen = stup[1]
         # first hitcircle in stream won't change direction or velocity
-        word_arr[sidx+1:sidx+slen,1] = np.random.choice(np.array([NW_int, NE_int]))
-        word_arr[sidx+1:sidx+slen,2] = crawl_int
+        word_arr[sidx+1:sidx+slen,1] = np.random.choice(np.array([NW_int, N_int, NE_int]))
+        word_arr[sidx+1:sidx+slen,2] = np.random.choice(np.array([crawl_int, slow_int]))
     
     
     
@@ -195,23 +220,14 @@ def label2WordArray(label_arr, tick_arr, wav_len):
     # gaps less than threshold (10 ticks) can be made sliders
     obj_avail = np.where(slider_diff < 11)[0]
     # use every other obj as slider start
-    slider_starts = slider_idx[obj_avail[::2]]
-    slider_ends = slider_idx[obj_avail[::2]+1]
+    slider_starts = slider_idx[obj_avail[::3]]
+    slider_ends = slider_idx[obj_avail[::3]+1]
     # sliders should have a changing direction (NW, N, NE)
     # slider centers should have 'c' velocity
     # slider ends should have 'm' slider velocity
     for ss, se in zip(slider_starts, slider_ends):
-        tick_obj[ss] = sb_int
-        tick_obj[se] = se_int
-        slider_dir = np.random.choice(np.array([NW_int, N_int, NE_int]))
-        if se - ss > 1:
-            tick_obj[ss+1:se] = sc_int
-            word_arr[ss:se+1,1] = slider_dir
-            word_arr[ss+1:se,2] = crawl_int
-            word_arr[se,2] = med_int
-        else:
-            word_arr[se,1] = slider_dir
-            word_arr[se,2] = med_int
+        setSlider(tick_obj, word_arr, ss, se)
+        
     
     ### remove lone objects
     #circle_idx = tick_obj == 3

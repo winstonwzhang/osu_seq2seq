@@ -323,10 +323,11 @@ class Map:
                 end_time = self.mp3_len
             
             msp4b = mspb / ui['meter']
-            #endgap = (end_time - begin_time) % msp4b
+            endgap = (end_time - begin_time) % msp4b
+            end_time = end_time - endgap
             arr = np.arange(begin_time, end_time, msp4b)
             # save ending time of each ui section
-            self.T_ui[i]['endTime'] = end_time#-endgap
+            self.T_ui[i]['endTime'] = end_time
             self.ticks = np.append(self.ticks,arr)
         
         
@@ -346,13 +347,16 @@ class Map:
 
 def profile_map():
     # for testing only
+    #filename = "umu. - humanly (Half) [Len's Robotically Another]"
     #filename = "Our Stolen Theory - United (L.A.O.S Remix) (Asphyxia) [Infinity]"
     #filename = "Will Stetson - Despacito ft. R3 Music Box (Sotarks) [Monstrata's Slow Expert]"
     #filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
-    filename = "Caravan Palace - Miracle (Mulciber) [Extra]"
+    #filename = "Caravan Palace - Miracle (Mulciber) [Extra]"
     #filename = "xi - FREEDOM DiVE (Pikastar) [Universe]"
     #filename = "DM Ashura - Classical Insanity (Louis Cyphre) [Vivacissimo]"
-    #filename = "652886 Wisp X - Wander [Insane]"
+    filename = "Die For You ft. Grabbitz  - VCT 2021"
+    #filename = "Train - 50 Ways to Say Goodbye"
+    #filename = "Nightcore - Dernière Danse"
     
     osu_file = "songs/osu_mp3/" + filename + ".osu"
     mp3_file = "songs/osu_mp3/" + filename + ".mp3"
@@ -362,13 +366,21 @@ def profile_map():
     # [Time(ms), bpm, meter(beats per measure)]
     # bpm = 1 / [tick_length] * 1000 * 60
     # assume timing is found beforehand
+    #time_bpm = [[983,250,4]]
     #time_bpm = [[15688, 175, 4]]
     #time_bpm = [[540,91,4],[2245,89,4]]
     #time_bpm = [[1342,180,4]]
-    time_bpm = [[-30,200,4]]
+    #time_bpm = [[-30,200,4]]
     #time_bpm = [[2133,222.22,4]]
     #time_bpm = [[38,175,4],[64152,175,3],[75466,175,4]]
+    time_bpm = [[5620,190,4]]
+    #time_bpm = [[430,140,4]]
+    #time_bpm = [[590,132.25,4]]
     
+    # replace human timing with mmb timing sections
+    #from beat_detect import getMmbBPM
+    #time_bpm = getMmbBPM(mp3_file)
+    #pdb.set_trace()
     
     ### Experiment 1: Create map from audio file and predicted labels
     import librosa
