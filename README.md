@@ -1,6 +1,6 @@
 # osu_seq2seq
 Automatic sequence-to-sequence generation of beatmaps for the rhythm
-game Osu! using NLP concepts
+game Osu!
 
 Osu! is a popular free rhythm game where users submit "beatmaps"
 that are mapped to a song's beat.
