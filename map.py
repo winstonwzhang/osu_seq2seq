@@ -134,21 +134,9 @@ class Map:
         save_map(self.name, map_json)
     
     
-    def saveMap2Array(self,np_path,file_option):
-        '''Saves ticks and words into numpy array format'''
-        # this func returns 2 arrays
-        # one float arr for tick times and one int arr for words
-        tick_arr, word_arr = decodeMap2Array(self)
-        
-        if file_option:
-            np.savez(np_path,ticks=tick_arr,words=word_arr)
-        else:
-            return tick_arr, word_arr
-    
-    
     def saveMap2HitLabels(self,wav_len,num_bins,np_path,file_option):
         '''
-        Translates ticks and words into label array with length N
+        Translates ticks and hitobject arrays into label array with length N
         where N is the number of time bins in the spectrogram
         num_bins = (wav_len / [bin_len])+1
         Inputs: wav_len - length of cropped audio in seconds
@@ -156,11 +144,10 @@ class Map:
         Outputs: labels - array with length num_bins indicating 
                                  class of hit object at every time bin
         '''
-        # this func returns 2 arrays
-        # one float arr for tick times and one int arr for words
-        tick_arr, word_arr = decodeMap2Array(self)
+        tick_arr = self.ticks
+        arr = np.hstack((M.a_obj, M.a_vel, M.a_dir))
         
-        labels = wordArray2Label(tick_arr, word_arr, wav_len, num_bins)
+        labels = array2Label(tick_arr, arr, wav_len, num_bins)
         
         if file_option:
             np.save(np_path,labels)
@@ -168,22 +155,22 @@ class Map:
             return labels
     
     
-    def encodeHitLabels2Map(self,wav_len,labels):
+    def loadHitLabels2Map(self,wav_len,labels):
         '''
-        Translates label array with length N into time ticks and words
+        Translates label array with length N into time ticks and object arrays
         where N is the number of time bins in the spectrogram
         num_bins = (wav_len / [bin_len])+1
         Inputs: wav_len - length of cropped audio in seconds
                     labels - Nx1 array with values 1 to 6 indicating hitobjects 
                                (i.e. from model prediction)
-        Outputs: words saved into map object
+        Outputs: hitobject info saved into map object
         '''
-        word_arr = label2WordArray(labels, self.ticks, self.time_bpm, wav_len)
+        arr = label2Array(labels, self.ticks, self.time_bpm, wav_len)
         
         # store words into map object
-        new_words = encodeArray2Map(self, word_arr)
+        self.decodeArray(arr)
         
-        return new_words
+        return arr
         
         
     

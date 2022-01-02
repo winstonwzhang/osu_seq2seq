@@ -26,8 +26,6 @@ DEFAULT_EDGESOUND = "0"
 DEFAULT_EDGESET = "0:0"
 DEFAULT_HITSAMPLE = "0:0:0:0"
 
-r22 = np.sqrt(2)/2
-
 
 # word constants
 # object subwords
@@ -198,7 +196,7 @@ def encodeMap2Array(M):
         tidiff = max(ti - prev_ti,1)  # min diff of 1 tick
         titimediff = np.abs(obj_time - titime)
         
-        _,T = M.getTDict(obj_time)
+        _, T = M.getUITDict(obj_time)
         tilen = T['beatLength'] / T['meter']
         obj_xy = [obj['x'], obj['y']]
         # magnitude and direction of vector from prev object xy

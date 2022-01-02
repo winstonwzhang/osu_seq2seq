@@ -109,7 +109,7 @@ def getBestShifts(time_bpm, ms_ticks, label_arr, bin_in_sec, N, crop_sec):
     
     
         
-def label2WordArray(label_arr, tick_arr, time_bpm, wav_len):
+def label2Array(label_arr, tick_arr, time_bpm, wav_len):
     '''
     labels: array Nx1 with values [0,1] indicating probability of hit object
     tick_arr: ticks in ms
@@ -299,7 +299,7 @@ def label2WordArray(label_arr, tick_arr, time_bpm, wav_len):
 
 
 
-def wordArray2Label(tick_arr, word_arr, wav_len, num_bins):
+def array2Label(tick_arr, arr, wav_len, num_bins):
     '''
     tick_arr: ticks in ms
     word_arr: [num ticks] x 3 array with hitobject, direction, and velocity information
@@ -310,13 +310,13 @@ def wordArray2Label(tick_arr, word_arr, wav_len, num_bins):
     bin_len = wav_len / (num_bins-1)  # length of each time bin in seconds
     bin_in_sec = 1 / bin_len  # number of bins in every second
     
-    labels = np.zeros((N,), dtype=np.uint8)
+    labels = np.zeros((N,3))
     
     # convert ticks (ms) to time bin indices
     tbi = np.floor((tick_arr/1000) * bin_in_sec).astype(np.int)
     # shift four bins into the future due to spectrogram window being 4 hop lengths (2048/512)
     tbi = tbi + 4
     # hit object classes
-    labels[tbi] = word_arr[:,0]
+    labels[tbi,:] = arr
     
     return labels
