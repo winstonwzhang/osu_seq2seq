@@ -65,14 +65,59 @@ def getTickBins(tarr, bin_in_sec, N):
         tbi = np.around((tarr/1000) * bin_in_sec, decimals=0).astype(np.int) + 4
         tbi = np.delete(tbi, np.where(tbi >= N))
         return tbi
+
+
+def getBestShifts(time_bpm, ms_ticks, label_arr, bin_in_sec, N, crop_sec):
+    
+    # modify offsets to match
+    best_shifts = []
+    for i, section in enumerate(time_bpm):
+        if i == len(time_bpm)-1:
+            rg = (section[0], crop_sec*1000)
+        else:
+            rg = (section[0], time_bpm[i+1][0])
         
+        section_ticks = ms_ticks[np.bitwise_and(ms_ticks >= rg[0], ms_ticks < rg[1])]
         
-def label2WordArray(label_arr, tick_arr, wav_len):
+        # range of ms shifts to search over
+        check_range = np.arange(-200, 201)
+        check_sum = np.zeros(check_range.shape)
+        for ci, cdiff in enumerate(check_range):
+            new_ticks = section_ticks+cdiff
+            new_ticks = new_ticks[new_ticks >= 0]
+            tbi = getTickBins(new_ticks, bin_in_sec, N)
+            check_sum[ci] = label_arr[tbi].sum()
+
+        # smooth sums to find peak of curves
+        sumsmooth = smooth(check_sum, win_size=31, method="sg")
+        pkidx, pkdict = scipy.signal.find_peaks(sumsmooth, prominence=np.ptp(sumsmooth)/10)
+        pkshifts = check_range[pkidx]
+        best_shift = check_range[pkidx[np.argmin(np.abs(pkshifts))]]
+
+        choice = 0
+        if choice == 1:
+            import matplotlib.pyplot as plt
+            plt.plot(check_range, check_sum)
+            plt.plot(check_range, sumsmooth)
+            plt.vlines(best_shift, np.min(sumsmooth), np.max(sumsmooth),
+                       alpha=0.5, color='r', linestyle='--', label='best shift')
+        print('best tick shift: ', best_shift)
+        
+        best_shifts.append(best_shift)
+    
+    return best_shifts
+    
+    
+        
+def label2WordArray(label_arr, tick_arr, time_bpm, wav_len):
     '''
     labels: array Nx1 with values [0,1] indicating probability of hit object
     tick_arr: ticks in ms
+    time_bpm: list of lists, with each element list containing 
+                    [offset, bpm, meter] for each uninherited timing section
     wav_len: length of cropped audio from spectrogram in seconds
     '''
+    ticks = np.copy(tick_arr)
     # set all objects greater than threshold to 3 (hitcircle) for now
     labels = np.copy(label_arr)
     thresh = 0.1
@@ -86,24 +131,28 @@ def label2WordArray(label_arr, tick_arr, wav_len):
     bin_in_sec = 1 / bin_len  # number of bins in every second
     
     # convert ticks (ms) to time bin indices
-    #tick_diff = np.diff(tick_arr)
+    #tick_diff = np.diff(ticks)
     # only keep tick idx with difference > bin length
     #kept_ticks = np.where(tick_diff > round(bin_len*1000))[0]
-    #kept_ticks = tick_arr[kept_ticks]
+    #kept_ticks = ticks[kept_ticks]
     
-    # range of ms shifts to search over
-    check_range = np.arange(-50, 51)
-    check_sum = np.zeros(check_range.shape)
-    for ci, cdiff in enumerate(check_range):
-        tbi = getTickBins(tick_arr+cdiff, bin_in_sec, N)
-        check_sum[ci] = label_arr[tbi].sum()
-    #best_shift = check_range[np.argmax(check_sum)]
-    sumsmooth = smooth(check_sum, win_size=31, method="sg")
-    pkidx, pkdict = find_peaks(sumsmooth, prominence=np.ptp(sumsmooth)/10)
-    pkshifts = check_range[pkidx]
-    best_shift = check_range[pkidx[np.argmin(np.abs(pkshifts))]]
-    
-    tbi = getTickBins(tick_arr+best_shift, bin_in_sec, N)
+    # search for best model predictions for given timing ticks
+    choice = 1
+    if choice == 1:
+        best_shifts = getBestShifts(time_bpm, ticks, label_arr, bin_in_sec, N, wav_len)
+        for i, section in enumerate(time_bpm):
+            if i == len(time_bpm)-1:
+                rg = (section[0], wav_len*1000)
+            else:
+                rg = (section[0], time_bpm[i+1][0])
+            section_idx = np.bitwise_and(ticks >= rg[0], ticks < rg[1])
+            ticks[section_idx] = ticks[section_idx] + best_shifts[i]
+            
+        tbi = getTickBins(ticks, bin_in_sec, N)
+        
+    else:
+        tbi = getTickBins(ticks, bin_in_sec, N)
+        
     # if too many hit objects, increase threshold
     while objs[tbi].sum() > len(objs)/4:
         if thresh >= 0.95:

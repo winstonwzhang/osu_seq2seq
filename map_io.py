@@ -262,7 +262,7 @@ def save_map(basename, map_json):
     def writeEvents(f,l):
         f.write('//Break Periods\n')
         for br in l:
-            f.write('2,'+str(round(br['startTime']))+','+str(round(br['endTime']))+'\n')
+            f.write('2,'+str(int(br['startTime']))+','+str(int(br['endTime']))+'\n')
     
     def writeTimingPoints(f,l):
         SAMPLESET = 0
@@ -283,9 +283,9 @@ def save_map(basename, map_json):
             new_combo = obj['newCombo']
             hitsample = obj['hitSample']
             if new_combo == 1:
-                combo_bin = 0b00
-            else:
                 combo_bin = 0b100
+            else:
+                combo_bin = 0b000
             
             if obj_type == 0:
                 bin_type = 0b1 | combo_bin

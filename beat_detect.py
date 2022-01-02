@@ -15,27 +15,85 @@ from utils import *
 
     
     
-def plotAudioBeats(x, sr, hop_length, onset_bin, beat_sec):
+def plotAudioBeats(x, sr, hop_length, onset_bin, beat_sec, plot_mel=False):
     '''
     Plots mel spectrogram of audio x,
     onset strength and predicted beats in song
     '''
-    fig, ax = plt.subplots(nrows=2, sharex=True)
+    figsize = (10,6)
+    if plot_mel:
+        fig, ax = plt.subplots(nrows=2, sharex=True, figsize=figsize)
+        ax0 = ax[0]
+    else:
+        fig, ax = plt.subplots(nrows=1, figsize=figsize)
+        ax0 = ax
+    
     times = np.arange(len(onset_bin)) * (hop_length/sr)
     
-    M = librosa.feature.melspectrogram(y=x, sr=sr, hop_length=hop_length)
-    librosa.display.specshow(librosa.power_to_db(M, ref=np.max),
-                             y_axis='mel', x_axis='time', sr=sr, hop_length=hop_length,
-                             ax=ax[0])
-                             
-    ax[0].label_outer()
-    ax[0].set(title='Mel spectrogram')
-    ax[1].plot(times, librosa.util.normalize(onset_bin),
+    ax0.plot(times, librosa.util.normalize(onset_bin),
              label='Onset strength')
-    ax[1].vlines(beat_sec, 0, 1, alpha=0.5, color='r',
+    ax0.vlines(beat_sec, 0, 1, alpha=0.5, color='r',
                linestyle='--', label='Beats')
-    ax[1].legend()
-    plt.show(block=False)
+    ax0.legend()
+    
+    if plot_mel:
+        M = librosa.feature.melspectrogram(y=x, sr=sr, hop_length=hop_length)
+        librosa.display.specshow(librosa.power_to_db(M, ref=np.max),
+                                 y_axis='mel', x_axis='time', sr=sr, hop_length=hop_length,
+                                 ax=ax[1])
+
+        ax[1].label_outer()
+        ax[1].set(title='Mel spectrogram')
+
+
+def getBPMFromBeats(onset_bins, bin_len, method):
+    '''Find potential bpm from beat positions in seconds'''
+    if method == 'lr':
+        when_beats = onset_bins * bin_len
+        m_res = scipy.stats.linregress(np.arange(len(when_beats)),when_beats)
+        first_beat = m_res.intercept 
+        beat_step = m_res.slope
+        pred_bpm = 60 / beat_step
+        bpm_range = np.array([pred_bpm-5, pred_bpm+5])
+    
+    else: # quadratic interpolation
+        onset_diffs = np.diff(onset_bins).astype(np.int)
+        # sorted unique values and their counts
+        uniqvals, counts = np.unique(onset_diffs, return_counts=True)
+        est_dist = scipy.interpolate.interp1d(uniqvals, counts, 'quadratic')
+        xnew = np.arange(uniqvals[0], uniqvals[-1], 0.01)
+        ynew = est_dist(xnew)
+        plt.plot(xnew, ynew)
+        best_ibin = np.argmax(ynew)
+        max_bin = xnew[best_ibin]
+        pred_bpm = 60/(max_bin*bin_len)
+        # bin peak bases
+        irange = int(0.04/bin_len)*100
+        pkrange = (max(best_ibin-irange, 0), min(best_ibin+irange, len(ynew)))
+        # bpm ranges
+        bpm_range = np.array([60/(xnew[pkrange[1]]*bin_len), 
+                              60/(xnew[pkrange[0]]*bin_len)])
+
+    # if bpm < 100, double it
+    if pred_bpm < 100:
+        pred_bpm *= 2
+        bpm_range *= 2
+    # if bpm > 300, halve it
+    if pred_bpm > 300:
+        pred_bpm = pred_bpm / 2
+        bpm_range = bpm_range / 2
+    # round bpm to 2 decimal places
+    pred_bpm = np.around(pred_bpm, decimals=2)
+    bpm_range = np.around(bpm_range, decimals=2)
+    # if predicted bpm is very close to integer value, round
+    bpm_shift = pred_bpm - round(pred_bpm)
+    if abs(bpm_shift) < 0.05:
+        pred_bpm = round(pred_bpm)
+        bpm_range = bpm_range - bpm_shift
+        
+    return pred_bpm, bpm_range
+    
+    
     
     
 def createTicks(time_bpm, est_end):
@@ -55,12 +113,13 @@ def createTicks(time_bpm, est_end):
         bpm = ui[1]
         meter = ui[2]
         
+        est_blen = 1/(bpm/60)
+        
         if i < len(time_bpm)-1:
             end_time = time_bpm[i+1][0]
         else:
             end_time = est_end
 
-        est_blen = 1/(bpm/60)
         est_tlen = est_blen / meter
         endgap = (end_time - begin_time) % est_tlen
         end_time = end_time - endgap
@@ -70,174 +129,216 @@ def createTicks(time_bpm, est_end):
     return ticks
     
     
-def getBPMRange(bin_len, onset_bin_idx):
-    '''Returns potential BPM range of song using binned onset indices'''
-    
-    onset_diffs = np.diff(onset_bin_idx).astype(np.int)
-    # sorted unique values and their counts
-    uniqvals, counts = np.unique(onset_diffs, return_counts=True)
-    count_perc = counts / sum(counts)
-    # get top k unique values
-    k = 5
-    pos_idx = counts.argsort()[-k:]
-    pos_idx.sort()
-    pos_bins = uniqvals[pos_idx]
-    pos_perc = count_perc[pos_idx]
-    maxbin = uniqvals[np.argmax(counts)]
-    
-    print(uniqvals)
-    print(counts)
-    
-    # get only highest count consecutive to most common bin diff
-    consec_bins = consecutive(pos_bins)
-    for arr in consec_bins:
-        if maxbin in arr:
-            maxidx = list(arr).index(maxbin)
-            if len(arr) > 2:
-                arr = arr[max(0,maxidx-1):min(len(arr), maxidx+2)]
-            if len(arr) == 3:
-                # 3 consecutive bin diffs, compare counts
-                next_count = pos_perc[pos_bins == arr[2]]
-                prev_count = pos_perc[pos_bins == arr[0]]
-                if next_count >= prev_count:
-                    arr = arr[1:]
-                else:
-                    arr = arr[:2]
-                    
-            # get proportions of chosen bin diffs as well
-            if len(arr) > 1:
-                maxidx = list(arr).index(maxbin)
-                bmax = np.argmax(counts)
-                if maxidx == 0: 
-                    pos_perc = count_perc[bmax:bmax+2]
-                else: 
-                    pos_perc = count_perc[bmax-1:bmax+1]
-            else:
-                pos_perc = max(count_perc)
-            # found maxbin, break from loop
-            pos_bins = arr
-            break
+def checkTicks(est_x, est_end, onset_times, verbose_f):
+    '''
+    Check if estimated bpm and offset match with actual song onsets
+    Method: Generate the potential beats using estimated bpm and offset
+            Match each beat with nearest song onset
+            Calculate residual between the beat and nearest onset
+            Remove outlier residuals and smooth residual curve
+            Return mean abs residual to measure if simulated beat matches onsets
             
-    assert(len(pos_bins) < 3)
-    print(pos_bins)
-    
-    # assume meter is multiple of 4
-    # only one possible bpm size
-    pos_beats = [16, 8, 4, 2, 1, 1/2, 1/4, 1/8, 1/16]
-    sec_ticks = pos_bins * bin_len
-    pos_sec_beats = np.outer(pos_beats, sec_ticks)
-    pos_bpms = (1 / pos_sec_beats) * 60
-    # potential bpm ranges from 50 to 470 bpms
-    # if tick length is 0.032 seconds and meter = 4, bpm = 1/(0.032*4)*60 = 468.75
-    
-    # assuming bpm within 100 to 300 range
-    pred_row = np.argmax(np.sum(np.bitwise_and(pos_bpms > 100, pos_bpms < 300), axis=1))
-    pred_range = np.flip(pos_bpms[pred_row,:])
-    
-    # if two columns
-    if len(pred_range) > 1:
-        print('predicted bpm range: ', pred_range[0], ' to ', pred_range[1])
-        pos_bpms, pos_perc = np.flip(pos_bpms,axis=1), np.flip(pos_perc)
-        print('predicted bpm confidence: ', pos_perc[0], ' and ', pos_perc[1])
-    else:
-        print('predicted bpm range: ', pred_range[0])
-        print('predicted bpm confidence: ', pos_perc)
-    
-    return pred_range, pos_bpms, pos_perc
-    
-
-
-def checkTicks(pred_bpm, offset, pred_beats):
+    Inputs: est_x - array of size 2, estimated bpm and estimated offset
+            est_end - end range of generated ticks from bpm & offset
+            onset_times - onset times found through librosa or mmb
+                          objective to match with generated ticks
+            verbose_f - whether or not to output stats and plot residual curve
+    Outputs: res - mean abs residual between nearest onsets and simulated ticks
+                   residual signal is smoothed
     '''
-    create ticks in ms based off of predicted bpm and offset
-    compare predicted ticks to predicted beats from song
+    est_bpm = est_x[0]
+    est_offset = est_x[1]
+    est_blen = 1/(est_bpm/60)
+    est_tlen = est_blen/4  # assume meter is 4
+    est_beats = np.arange(est_offset, est_end, est_blen)
+    num_beats = len(est_beats)
+    
+    # matches each estimated beat with nearest onset time
+    idx, res = findNearest(onset_times, est_beats)
+    meanabsres = np.mean(np.abs(res))
+
+    # remove spikes and smooth
+    outres = reject_outliers(res, m = 2.)
+    outmeanres = np.mean(outres)
+    outmeanabsres = np.mean(np.abs(outres))
+    outstdres = np.std(outres)
+    
+    # line fitted to first couple samples (for offset finding)
+    first_samps = outres[:int(num_beats/4)]
+    first_outs = reject_outliers(first_samps, m = 2.)
+    # avg abs offset from 0 for first couple values (for offset finding)
+    first_val = np.abs(np.mean(first_outs[:10]))
+    
+    outresx = np.arange(len(first_outs))
+    outresy = first_outs
+    lrres = scipy.stats.linregress(outresx,outresy)
+    lrintercept = lrres.intercept
+    lrslope = lrres.slope
+    lrx = np.array([0, len(outres)])
+    lry = lrslope * lrx + lrintercept
+    lrscore = np.abs(lrslope) + np.abs(lrintercept) + first_val
+                     
+    #plotres = smooth(outres, win_size=51, method="sg")
+    #smoothmeanabsres = np.mean(np.abs(plotres))
+
+    if verbose_f:
+        # outputs
+        print('est beat length: ', est_blen, ' | est tick length: ', est_tlen)
+        print('time range from ', est_offset, ' to ', est_end)
+        print('num est beats: ', len(est_beats), ' | num est ticks: ', len(est_ticks))
+        print('mean residual: ', np.mean(res), ' | mean abs residual: ', meanabsres)
+        print('mean outlier-processed residual: ', outmeanres)
+        print('stdev outlier-processed residual: ', outstdres)
+        print('mean abs outlier-processed residual: ', outmeanabsres)
+        print('lr intercept: ', lrintercept, ' | lr slope: ', lrslope)
+        print('lr score: ', lrscore)
+        print('first_val: ', first_val)
+        
+        #print('mean smoothed residual: ', np.mean(plotres))
+        #print('mean abs smoothed residual: ', smoothmeanabsres)
+
+        fig, ax = plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(14,7))
+        ax[0].plot(res)
+        ax[1].plot(outres)
+        ax[1].plot(lrx,lry,'-r')
+    
+    return outstdres, lrscore, outmeanabsres
+
+
+def searchCombs(combs, xtype, metric, verbose_f, args):
     '''
-    # assume meter is 4
-    # bpm = 1 / [tick_length] * 1000 * 60
-    meter = 4
-    beat_ms = (60*1000) / pred_bpm
-    tick_ms = beat_ms / meter
-    sim_ticks = np.arange(offset, song_sec*1000, tick_ms)
-    onset_ms = onset_times * 1000
+    Search over bpm and offset combinations 
+    to find best matching bpm and offset
+    Inputs: combs - Nx2 array with N combinations
+                    of bpm (col 0) and offset (col 1)
+            metric - col of result metrics to optimize
+            args - other arguments for checkTicks func
+    '''
     
-    # visualize ticks and onsets
-    #plt.stem(sim_ticks,np.ones(sim_ticks.shape)*0.5,'b', linefmt='--',markerfmt='bo')
-    #plt.stem(onset_ms, np.ones(onset_ms.shape), 'g', markerfmt='go')
-    #plt.show()
+    results = []
+    for cx in combs:
+        cres = checkTicks(cx, *args)
+        cres = np.array(cres)
+        results.append(cres[np.newaxis,:])
+
+    resarr = np.vstack(results)
+    mc = resarr[:,metric]
+    # normalize and average columns if more than one metric
+    if len(metric) > 1:
+        mc = (mc - np.min(mc,axis=0)) / (np.max(mc,axis=0) - np.min(mc,axis=0))
+        mc = np.mean(mc, axis=1)
+    bestx = combs[np.argmin(mc),:]
     
-    # find nearest tick for every onset
-    near_idx, residual = findNearest(sim_ticks, onset_ms)
-    # check for overall shifts in onset - tick differences
-    # if residuals show a sin wave-like pattern, bpm is wrong
-    res_limit_ms = tick_ms / 2
-    pdb.set_trace()
-    # find large steps in residuals (possible bpm changes in song)
-    step_idx = stepDetect(residual[-300:])
+    if verbose_f:
+        print('searching over ', combs.shape[0], ' combinations')
+        
+        fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(15,10))
+        ax[0].plot(combs[:,xtype], resarr[:,0])
+        ax[1].plot(combs[:,xtype], resarr[:,1])
+        ax[2].plot(combs[:,xtype], resarr[:,2])
+
+        print('best [bpm, offset]: ', bestx)
+        print('best metric: ', np.min(mc))
+    
+    return bestx
 
 
 
-def getBPMFromBeats(when_beats):
-    '''Find potential bpm from beat positions in seconds'''
-    m_res = scipy.stats.linregress(np.arange(len(when_beats)),when_beats)
-    first_beat = m_res.intercept 
-    beat_step = m_res.slope
-    pred_bpm = 60 / beat_step
-    # if predicted bpm is very close to integer value, round
-    if abs(pred_bpm - round(pred_bpm)) < 0.1:
-        pred_bpm = round(pred_bpm)
-    # if bpm < 100, double it
-    if pred_bpm < 100:
-        pred_bpm *= 2
-    # if bpm > 400, halve it
-    if pred_bpm > 400:
-        pred_bpm = pred_bpm / 2
-    return pred_bpm
+def searchLoop(bpm_bounds, offset_bounds, x0, args):
+    '''Search over bpm and offset until convergence'''
+    verbose_f = 0
+    
+    est_bpm = x0[0]
+    est_offset = x0[1]
+    est_blen = 1/(est_bpm/60)
+    est_tlen = est_blen/4
+    
+    # rough search (0.1 bpm increments)
+    potential_bpm = np.arange(bpm_bounds[0], bpm_bounds[1], 0.1)
+    potential_offset = [est_offset]
+    print('searching bpm range: ', bpm_bounds, ' with offset ', est_offset, ' and increment ', 0.1)
+    combs = np.array(np.meshgrid(potential_bpm, potential_offset)).T.reshape(-1,2)
+    # search using std of residual to narrow down bpm range
+    bestcomb = searchCombs(combs, 0, [0], verbose_f, args)
+    print('best comb: ', bestcomb)
+    
+    # search for offset (0.001 sec increments)
+    potential_bpm = [bestcomb[0]]
+    potential_offset = np.arange(offset_bounds[0], offset_bounds[1], 0.001)
+    print('searching offset range: ', offset_bounds, ' with bpm ', bestcomb[0], ' and increment ', 0.001)
+    combs = np.array(np.meshgrid(potential_bpm, potential_offset)).T.reshape(-1,2)
+    # search using closeness of linear regression line to 0 slope and 0 intercept
+    bestcomb2 = searchCombs(combs, 1, [0, 1], verbose_f, args)
+    print('best comb: ', bestcomb2)
+    
+    # fine tuning
+    # measure mean abs residual between predicted beats and librosa onsets
+    used_metric = [2]
+    
+    # finer search (0.01 bpm increments)
+    new_bounds = (bestcomb[0]-0.09, bestcomb[0]+0.09)
+    potential_bpm = np.arange(new_bounds[0], new_bounds[1], 0.01)
+    potential_offset = [bestcomb2[1]]
+    print('searching bpm range: ', new_bounds, ' with offset ', bestcomb2[1], ' and increment ', 0.01)
+    combs = np.array(np.meshgrid(potential_bpm, potential_offset)).T.reshape(-1,2)
+    bestcomb3 = searchCombs(combs, 0, used_metric, verbose_f, args)
+    final_bpm = bestcomb3[0]
+    print('best comb: ', bestcomb3)
+    
+    # search for offset (0.001 sec increments)
+    new_bounds = (max(0, bestcomb2[1]-est_tlen), bestcomb2[1]+est_tlen)
+    potential_bpm = [final_bpm]
+    potential_offset = np.arange(new_bounds[0], new_bounds[1], 0.001)
+    print('searching offset range: ', new_bounds, ' with bpm ', final_bpm, ' and increment ', 0.001)
+    combs = np.array(np.meshgrid(potential_bpm, potential_offset)).T.reshape(-1,2)
+    bestcomb4 = searchCombs(combs, 1, used_metric, verbose_f, args)
+    final_offset = bestcomb4[1]
+    print('best comb: ', bestcomb4)
+    
+    plot_test = 1
+    if plot_test:
+        new_args = [args[0], args[1], 1]
+        checkTicks(bestcomb, *new_args)
+        checkTicks(bestcomb2, *new_args)
+        checkTicks(bestcomb3, *new_args)
+        checkTicks(bestcomb4, *new_args)
+    
+    return final_bpm, final_offset
 
 
 
-def checkOffsetLabels(sec_len, arr_file, time_bpm):
+def checkOffsetLabels(mp3_file, arr_file, time_bpm):
     '''Use model prediction spectrogram bin outputs to guess bpm range of song'''
-    #sec_len = librosa.get_duration(filename=mp3_file)
+    sec_len = librosa.get_duration(filename=mp3_file)
     mp3_len = sec_len * 1000
-
-    sec_bpm = [x[:] for x in time_bpm]
-    for i, section in enumerate(time_bpm):
-        sec_bpm[i][0] = section[0]/1000
-
-    new_ticks = createTicks(sec_bpm, sec_len)
-    ms_ticks = new_ticks * 1000
     
     # check offset using model predictions
     # requires model predictions
     label_arr, crop_sec = loadModelPred(arr_file, sec_len)
-
-    labels = np.copy(label_arr)
-    thresh = 0.1
-    labels[labels > thresh] = 1
-    labels[labels <= thresh] = 0
-    labels = labels.astype(np.uint8)
-
+    
     # spectrogram bins (default 0.032 seconds)
     N = len(label_arr)
     bin_len = crop_sec / (N-1)  # length of each time bin in seconds
     bin_in_sec = 1 / bin_len  # number of bins in every second
-    
-    # range of ms shifts to search over
-    check_range = np.arange(-50, 51)
-    check_sum = np.zeros(check_range.shape)
-    for ci, cdiff in enumerate(check_range):
-        tbi = np.floor(((ms_ticks+cdiff)/1000) * bin_in_sec).astype(np.int) + 4
-        tbi = np.delete(tbi, np.where(tbi >= N))
-        check_sum[ci] = labels[tbi].sum()
 
-    best_shift = check_range[np.argmax(check_sum)]
-    print('best tick shift: ', best_shift)
-    #plt.plot(check_range, check_sum)
+    #labels = np.copy(label_arr)
+    #thresh = 0.1
+    #labels[labels > thresh] = 1
+    #labels[labels <= thresh] = 0
+    #labels = labels.astype(np.uint8)
     
-    # modify offsets to match
-    final_sections = [x[:] for x in time_bpm]
+    sec_bpm = [x[:] for x in time_bpm]
     for i, section in enumerate(time_bpm):
-        final_sections[i][0] = section[0] + best_shift
+        sec_bpm[i][0] = section[0]/1000
+    
+    new_ticks = createTicks(sec_bpm, sec_len)
+    ms_ticks = new_ticks * 1000
+    
+    best_shifts = getBestShifts(time_bpm, ms_ticks, label_arr, bin_in_sec, N, crop_sec)
+    
+    final_sections = [x[:] for x in time_bpm]
+    for i, section in enumerate(final_sections):
+        section[0] = section[0] + best_shifts[i]
         
     print('final time sections: ', final_sections)
     
@@ -246,56 +347,86 @@ def checkOffsetLabels(sec_len, arr_file, time_bpm):
     
     
 def getLibrosaBPM(mp3_file):
-    '''Use librosa onset detector to guess BPM range of song'''
+    '''
+    Use librosa onsets library to guess BPM of song
+    Returns: list of tuples (offset, bpm, meter) 
+             for each section of song with different bpm
+    '''
     x, sr = librosa.load(mp3_file, sr=None, mono=True)
     song_sec = len(x) / sr
-    # lower hop window = higher resolution = more accurate bpm estimation
-    # however songs with changing bpms mean too accurate is also bad
-    # 256 seems ok for most songs
-    hop =  256
     
+    # librosa onset
+    hop = 256   
     onset_frames = librosa.onset.onset_detect(x, sr=sr, hop_length=hop)
     onset_times = onset_frames * (hop / sr)
-    o_env = librosa.onset.onset_strength(x, sr=sr)
+    o_env = librosa.onset.onset_strength(x, sr=sr, hop_length=hop)
+    
     # plot onset strength
-    # plt.plot(o_env)
-    # plt.plot(onset_frames, o_env[onset_frames])
-    # plt.show()
+    #plt.figure(figsize=(14,7))
+    #times = np.arange(len(o_env)) * (hop/sr)
+    #plt.plot(times, librosa.util.normalize(o_env), label='Onset strength')
+    #plt.vlines(onset_times, 0, 1, alpha=0.5, color='r',
+    #           linestyle='--', label='onsets')
     
-    bin_len = hop / sr  # length of each time bin in seconds
+    # quadratic interpolation of beat frame diff histogram
+    quad_bpm, bpm_range = getBPMFromBeats(onset_frames, (hop / sr), 'quad')
+    print("quad estimated bpm: ", quad_bpm)
+    print("quad estimated bpm range: ", bpm_range)
     
-    # get potential ranges of bpm and confidence of each limit
-    pred_range, bpm_range, bpm_conf = getBPMRange(bin_len, onset_frames)
+    # simulate ticks using estimated bpm and offset
+    est_bpm = quad_bpm
+    est_offset = onset_times[0]
+    est_end = min(onset_times[-1]+1, song_sec)
+
+    est_blen = 1/(est_bpm/60)
+    est_tlen = est_blen/4
+
+    # specify search bounds for bpm and offset
+    x0 = np.array([est_bpm, est_offset])
+    bpm_bounds = [est_bpm-10, est_bpm+10]
+    offset_bounds = (max(0, est_offset-est_tlen*2), est_offset+est_tlen*2)
+
+    print("initial bpm, initial offset: ", x0)
+    print("ticks end (seconds): ", est_end)
+    print("bpm search range: ", bpm_bounds)
+    print("offset search range: ", offset_bounds)
     
-    # simulate ticks starting from first onset
-    # measure goodness of fit with onsets
-    # create new bpm section if needed
-    # osu requires offset value to be in milliseconds
-    offset = round(onset_frames[0] * (hop / sr) * 1000)
+    # arguments for checkTicks function
+    args = (est_end, onset_times, 0)
+    # search over bounds to find optimal bpm and offset
+    final_bpm, final_offset = searchLoop(bpm_bounds, offset_bounds, x0, args)
     
-    # if single bpm prediction
-    if len(pred_range) == 1:
-        pred_bpm = round2Base(pred_range[0], base=5)
-    else:
-        # assume bpm is whole number, prefer a multiple of 5
-        if bpm_conf[1] > bpm_conf[0]:
-            pred_5 = roundDown2Base(pred_range[1], base=5)
-        else:
-            pred_5 = roundUp2Base(pred_range[0], base=5)
-            
-        if pred_5 >= pred_range[0] and pred_5 <= pred_range[1]:
-            pred_bpm = pred_5
-        else:
-            # resort to using ratio of confidence to nearest integer bpm
-            ratio_bpm = (bpm_conf[0] / np.sum(bpm_conf)) * (pred_range[1]-pred_range[0])
-            pred_bpm = round(pred_range[0] + ratio_bpm)
-        
-    print(pred_bpm)
+    # double check offset using different hop length
+    #hop = int(sr/100)
+    #onset_frames2 = librosa.onset.onset_detect(x, sr=sr, hop_length=hop)
+    #onset_times2 = onset_frames2 * (hop / sr)
+    #new_bounds = (max(0, final_offset-0.05), final_offset+0.05)
+    #potential_bpm = [final_bpm]
+    #potential_offset = np.arange(new_bounds[0], new_bounds[1], 0.001)
+    #print('searching offset range: ', new_bounds, ' with bpm ', final_bpm, ' and increment ', 0.001)
+    #combs = np.array(np.meshgrid(potential_bpm, potential_offset)).T.reshape(-1,2)
+    #bestcomb = searchCombs(combs, 1, used_metric, 0, (est_end, onset_times2, 0))
+    #final_offset = bestcomb[1]
     
-    # create ticks in ms based off of predicted bpm and offset
-    checkTicks(pred_bpm, offset, onset_times)
+    # finalize outputs
+    final_offset = np.around(final_offset, decimals=3)
+    final_offset = int(final_offset*1000)
+    final_bpm = np.around(final_bpm, decimals=2)
     
-    return offset, bpm
+    # if predicted bpm is very close to integer value, round
+    bpm_shift = final_bpm - round(final_bpm)
+    if abs(bpm_shift) < 0.06:
+        final_bpm = round(final_bpm)
+    
+    # final results
+    print('[offset bpm meter]: ', final_offset, final_bpm, 4)
+    
+    time_bpm = []
+    # always assume meter 4
+    # offset in ms
+    time_bpm.append([final_offset, final_bpm, 4])
+    
+    return time_bpm
 
 
 
@@ -374,29 +505,39 @@ def getMmbBPM(mp3_file):
 
 if __name__=='__main__':
     # get song
+    #filename = "umu. - humanly (Half) [Len's Robotically Another]"
     #filename = "Our Stolen Theory - United (L.A.O.S Remix) (Asphyxia) [Infinity]"
     #filename = "Will Stetson - Despacito ft. R3 Music Box (Sotarks) [Monstrata's Slow Expert]"
     #filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
     #filename = "Caravan Palace - Miracle (Mulciber) [Extra]"
-    #filename = "xi - FREEDOM DiVE (Pikastar) [Universe]"
+    filename = "xi - FREEDOM DiVE (Pikastar) [Universe]"
     #filename = "DM Ashura - Classical Insanity (Louis Cyphre) [Vivacissimo]"
+    #filename = "Die For You ft. Grabbitz  - VCT 2021"
+    #filename = "Train - 50 Ways to Say Goodbye"
+    #filename = "Nightcore - Dernière Danse"
+
     #filename = "The Quick Brown Fox - The Big Black (Blue Dragon) [WHO'S AFRAID OF THE BIG BLACK]"
     #filename = "YOASOBI - Yoru ni Kakeru (CoLouRed GlaZeE) [Collab Extra]"
     #filename = "AKINO from bless4 & CHiCO with HoneyWorks - MIIRO vs. Ai no Scenario (monstrata) [Tatoe]"
     #filename = "GALNERYUS - RAISE MY SWORD (beem2137) [Feruver's Expert]"
     #filename = "SakiZ - osu!memories (DeRandom Otaku) [Happy Memories]"
-    filename = "Wan Ho-Kit, Lee Hon-Kam - Unknown Title (Monstrata) [Let's show them Monstrata's powerful stance.]"
-    
+    #filename = "Wan Ho-Kit, Lee Hon-Kam - Unknown Title (Monstrata) [Let's show them Monstrata's powerful stance.]"
+
     # [Time(ms), bpm, meter(beats per measure)]
     # bpm = 1 / [tick_length] * 1000 * 60
-    
+
     # check if predicted offset and BPM are close to actual song values
+    #time_bpm = [[983,250,4]]
     #time_bpm = [[15688, 175, 4]]
     #time_bpm = [[540,91,4],[2245,89,4]]
     #time_bpm = [[1342,180,4]]
     #time_bpm = [[-30,200,4]]
     #time_bpm = [[2133,222.22,4]]
     #time_bpm = [[38,175,4],[64152,175,3],[75466,175,4]]
+    #time_bpm = [[5620,190,4]]
+    #time_bpm = [[430,140,4]]
+    #time_bpm = [[590,132.25,4]]
+
     #time_bpm = [[6966,360.3,4]]
     #time_bpm = [[1040,130,4]]
     #time_bpm = [[0,195,4],[55692,180,4]]
@@ -415,10 +556,26 @@ if __name__=='__main__':
     #model_range, model_conf = getModelBPM(mp3_file, arr_file)
     
     # use librosa onset detector to get potential bpm ranges
-    #bpm_range, bpm_conf = getLibrosaBPM(mp3_file)
+    time_bpm = getLibrosaBPM(mp3_file)
+    print(time_bpm)
+    
+    final_sections = checkOffsetLabels(mp3_file, arr_file, time_bpm)
+    
+    ### Experiment 1: Create map from audio file and predicted labels
+
+    sec_len = librosa.get_duration(filename=mp3_file)
+    mp3_len = sec_len * 1000
+    m_empty = Map.fromTiming(final_sections,mp3_file,mp3_len=mp3_len)
+    #m_empty = Map.fromTiming([[2133,222.22,4]],mp3_file,mp3_len=mp3_len)
+
+    label_arr, crop_sec = loadModelPred(arr_file, sec_len)
+
+    obj_words = m_empty.encodeHitLabels2Map(crop_sec, label_arr)
+    m_empty.decodeWords(obj_words)
+    m_empty.saveMap2Osu()
     
     # use rnn beat tracker
-    mmb_sections = getMmbBPM(mp3_file)
+    #mmb_sections = getMmbBPM(mp3_file)
     
     
     

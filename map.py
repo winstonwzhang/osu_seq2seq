@@ -8,7 +8,8 @@ import numpy as np
 import pandas as pd
 
 from map_io import load_map, load_template, save_map, save_words
-from word import *
+#from word import *
+from hitobject import *
 from label import *
 from utils import parseOsuMp3Filename
 
@@ -177,7 +178,7 @@ class Map:
                                (i.e. from model prediction)
         Outputs: words saved into map object
         '''
-        word_arr = label2WordArray(labels, self.ticks, wav_len)
+        word_arr = label2WordArray(labels, self.ticks, self.time_bpm, wav_len)
         
         # store words into map object
         new_words = encodeArray2Map(self, word_arr)
@@ -298,6 +299,11 @@ class Map:
         self.T_sidx_ui = np.array(self.T_sidx_ui)
         self.T_sidx_all = np.array(self.T_sidx_all)
         
+        # save timing info
+        self.time_bpm = [[sec['time'], 
+                                    (60*1000)/sec['beatLength'], 
+                                    sec['meter']] for sec in self.T_ui]
+        
         # get timing ticks
         self.ticks = np.array([])
         for i, ui in enumerate(self.T_ui):
@@ -336,13 +342,15 @@ class Map:
         Encodes each tick (quarter beat) into a custom "word"
         Words give object type, direction, and velocity information for hitobjects
         '''
-        return encodeJSON2Words(self)
+        return encodeMap2Array(self)
     
     
-    def decodeWords(self,words):
-        '''Decodes words and saves hit object json to Map object'''
-        decodeWords2JSON(self,words)
-        self.words = words
+    def decodeArray(self,arr):
+        '''Decodes hitobject array and saves hit object json to Map object'''
+        decodeArray2Map(self, arr)
+        self.a_obj = arr[:,0]
+        self.a_vel = arr[:,1]
+        self.a_dir = arr[:,2]
 
 
 def profile_map():
