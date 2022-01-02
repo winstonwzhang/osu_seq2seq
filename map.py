@@ -145,7 +145,7 @@ class Map:
                                  class of hit object at every time bin
         '''
         tick_arr = self.ticks
-        arr = np.hstack((M.a_obj, M.a_vel, M.a_dir))
+        arr = np.hstack((self.a_obj, self.a_vel, self.a_dir))
         
         labels = array2Label(tick_arr, arr, wav_len, num_bins)
         
