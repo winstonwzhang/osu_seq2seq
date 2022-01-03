@@ -103,8 +103,8 @@ def encodeSlider(M, obj, ti, T, direc):
     cv = Curve.from_kind_and_points(c_type,ctrl_pts,length)
     
     # get curve t idx corresponding to tick times
-    ti_ms = T['beatLength'] / T['meter']
     _,ui_T = M.getUITDict(obj['time'])
+    ti_ms = ui_T['beatLength'] / ui_T['meter']
     slide_ms, all_slide_ms = M.getSliderTimes(obj, T, ui_T)
     _,all_end_ti = M.getTick(obj['time']+all_slide_ms)
     
@@ -170,8 +170,9 @@ def encodeMap2Array(M):
         tidiff = max(ti - prev_ti,1)  # min diff of 1 tick
         titimediff = np.abs(obj_time - titime)
         
-        _, T = M.getUITDict(obj_time)
-        tilen = T['beatLength'] / T['meter']
+        _, uiT = M.getUITDict(obj_time)
+        _, T = M.getTDict(obj_time)
+        tilen = uiT['beatLength'] / uiT['meter']
         obj_xy = [obj['x'], obj['y']]
         # magnitude and direction of vector from prev object xy
         mag, direc = getVector(prev_xy, obj_xy)
@@ -511,9 +512,11 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     
     #filename = "Caravan Palace - Miracle (Mulciber) [Extra]"
-    filename = "Yuyoyuppe - AiAe (Fort) [Eternal]"
+    #filename = "Yuyoyuppe - AiAe (Fort) [Eternal]"
+    filename = "YOASOBI - Ano Yume o Nazotte (Sarawatlism) [Daisuki]"
     #time_bpm = [[-30,200,4]]
-    time_bpm = [[1008, 180, 4]]
+    #time_bpm = [[1008, 180, 4]]
+    time_bpm = [[1342,180,4]]
     
     osu_file = "songs/osu_mp3/" + filename + ".osu"
     mp3_file = "songs/osu_mp3/" + filename + ".mp3"
@@ -522,6 +525,9 @@ if __name__ == "__main__":
     m = Map.fromPath(osu_file)
     # encode then decode the hitobjects and try out the map
     obj_arr = m.encodeTicks()
+    plt.plot(obj_arr[:,0])
+    plt.show(block=False)
+    pdb.set_trace()
     
     # new map from timing only
     import librosa

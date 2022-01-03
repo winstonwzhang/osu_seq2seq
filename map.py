@@ -229,7 +229,7 @@ class Map:
     
     def getSliderTimes(self, sliderobj, cur_T, ui_T):
         '''Get time for one slider length as well as entire slider (with repeats)'''
-        blen = cur_T['beatLength']
+        blen = ui_T['beatLength']
         sx_mult = cur_T['speedMultiplier']
         # if bpm was doubled make sure to double slider tick lengths as well
         length = sliderobj['length'] * ui_T['sliderLengthMult']
@@ -278,7 +278,7 @@ class Map:
                 self.T_sidx_ui.append(sec['time'])
             else:
                 sec['speedMultiplier'] = 100.0 / -float(sec['beatLength'])
-                sec['beatLength'] = cur_beatLen
+                #sec['beatLength'] = cur_beatLen
                 sec['bpm'] = 1 / float(cur_beatLen) * 1000 * 60
             self.T_all.append(sec)
             self.T_sidx_all.append(sec['time'])
