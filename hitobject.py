@@ -145,7 +145,7 @@ def encodeSlider(M, obj, ti, T, direc):
         cv_t, rep = math.modf(slide_ratio)
         rep = int(rep)
         # get slider part using ratio
-        if abs(round(cv_t)-cv_t) < 0.05:
+        if abs(round(cv_t)-cv_t) < 0.05 or si == len(all_slide_ti)-1:
             sw1 = SLIDER_END
         else:  # middle of slider
             sw1 = SLIDER_CENTER
