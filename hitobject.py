@@ -40,33 +40,7 @@ EMPTY = 'e'
 obj_str2int = dict([(y,x) for x,y in enumerate(['e','b','spin','h','slb','slc','sle'])])
 obj_int2str = {v: k for k,v in obj_str2int.items()}
 
-# cardinal direction: radian thresholds
-t_NNE = np.pi/8
-t_NEE = np.pi*3/8
-t_ESE = np.pi*5/8
-t_SES = np.pi*7/8
-# cardinal direction: subwords
-E = 'E'
-NE = 'NE'
-N = 'N'
-NW = 'NW'
-W = 'W'
-SW = 'SW'
-S = 'S'
-SE = 'SE'
-# cardinal direction: rotation [cos(theta) sin(theta)] vals
-rot = {'E': [0.0, -1.0],
-       'NE': [r22, -r22],
-       'N': [1.0, 0.0],
-       'NW': [r22, r22],
-       'W': [0.0, 1.0],
-       'SW': [-r22, r22],
-       'S': [-1.0, 0.0],
-       'SE': [-r22, -r22]
-       }
-# direction string to int dictionary
-dir_str2int = dict([(y,x) for x,y in enumerate(['E','NE','N','NW','W','SW','S','SE'])])
-dir_int2str = {v: k for k,v in dir_str2int.items()}
+
 
 
 # calculate slider osu!pixel per second from map inherited section:
